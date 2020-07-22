@@ -1,0 +1,6 @@
+.DS_Store
+*.root
+*.pdf
+*.png
+*.tmp
+saved_plots/*
