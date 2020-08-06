@@ -100,7 +100,7 @@ float CalcEnergyDepParticle(int iP){
         float KE = 1e3*_Eng[i] - m;
         
         // if Brem photon or ionization electron, subtract off the energy
-        if( _processname->at(i) == "eBrem" || _processname->at(i) == "eIoni" ) 
+        if( _processname->at(i) == "eBrem" || _processname->at(i) == "eIoni" || _processname->at(i) == "hIoni" ) 
           Edep -= KE;
 
         // If we're dealing with positron annihilation, things are more 
@@ -123,7 +123,7 @@ float CalcEnergyDep(int iP){
   // If this is an electron that came from another electron, 
   // it would have already been grouped as part of the
   // contiguous "blip" previously, so don't count it.
-  if( _pdg[iP] == 11 && _processname->at(iP) == "eIoni" ) return 0.;
+  if( _pdg[iP] == 11 && (_processname->at(iP) == "eIoni" || _processname->at(iP) == "hIoni") ) return 0.;
 
   // First calculate energy depoosited *directly* by this particle
   float Edep = CalcEnergyDepParticle(iP);
@@ -133,7 +133,7 @@ float CalcEnergyDep(int iP){
   // energy deposition.
   if( _NumberDaughters[iP] > 0 ){
     for(size_t i=iP+1; i<_geant_list_size; i++){
-      if( _processname->at(i) == "eIoni" ) {
+      if( _processname->at(i) == "eIoni" || _processname->at(i) == "hIoni" ) {
         bool breakAtPhots=true;
         if( IsParticleDescendedFrom(_TrackId[i],_TrackId[iP],breakAtPhots) ){
           Edep += CalcEnergyDepParticle(i);
