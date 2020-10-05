@@ -19,6 +19,7 @@ std::string             fFileName_0to60 = "../mcfiles/AnaTree_electron_0to60MeV_
 std::string             fFileName_100   = "../mcfiles/AnaTree_electron_100MeV_10kEvents.root";
 std::string             fFileName_200   = "../mcfiles/AnaTree_electron_200MeV_10kEvents.root";
 std::string             fFileName_500   = "../mcfiles/AnaTree_electron_500MeV_10kEvents.root";
+//std::string             fFileName_snnue = "../mcfiles/AnaTree_SNnueCC.root";
 std::string             fFileName       = fFileName_0to60;
 
 std::string             fTreeName       = "analysistree/anatree";
@@ -42,7 +43,7 @@ TFile*    fOutFile;
 TTree*    fTree;
 
 TVector3  fSphereCen;
-float     fElectronEnergy;
+float     fTrueEnergy;
 float     fTrkEnergyDep;
 //float     fShwEnergyDep[nconfigs_SphereR];
 float     fTotalEnergyDep[nconfigs_SphereR];
@@ -150,7 +151,7 @@ void ElectronReco_AnaMacro(){
   h_EnergyBudget        ->Write();
   h_BlipEnergy          ->Write();
   h_MaxBlipEnergy       ->Write();
-  h_BlipPathLength          ->Write();
+  h_BlipPathLength      ->Write();
   h_EnergyTrk           ->Write();
   h_EnergyTrk_TrueVsReco->Write();
   h_EnergyTrk_TrueVsRes ->Write();
@@ -184,6 +185,7 @@ void reco(){
     float total_edep = 0.;
     
     fTrkEnergyDep = 0.;
+    float nuEnergy = _NuEnergy*1e3;
 
     // Loop over particles and fill in the blips.
     int nParticles = _geant_list_size;
@@ -210,9 +212,10 @@ void reco(){
         
         // if primary electron, record energy dep
         if( proc == "primary" ) {
-          fElectronEnergy = KE;
+          fTrueEnergy = KE;
           fTrkEnergyDep   = edep; 
           fSphereCen      = loc;
+          if( nuEnergy > 0 ) fTrueEnergy = nuEnergy;
         } 
 
         // otherwise, record a new blip
@@ -244,13 +247,13 @@ void reco(){
     
     }//>> end particle loop
 
-   // if( fabs(total_edep -fElectronEnergy) > 3. ) std::cout<<"!!! ERROR !!!\n";
+   // if( fabs(total_edep -fTrueEnergy) > 3. ) std::cout<<"!!! ERROR !!!\n";
    // std::cout
    // <<"Total blips      : "<<v_blips.size()<<"\n"
-   // <<"Initial energy   : "<<fElectronEnergy<<" MeV\n"
+   // <<"Initial energy   : "<<fTrueEnergy<<" MeV\n"
    // <<"Total energy dep : "<<total_edep<<" MeV\n"
-   // <<"Difference       : "<<total_edep - fElectronEnergy<<" MeV\n";
-    h_EnergyBudget->Fill((total_edep-fElectronEnergy));
+   // <<"Difference       : "<<total_edep - fTrueEnergy<<" MeV\n";
+    h_EnergyBudget->Fill((total_edep-fTrueEnergy));
 
     // .................................
     // merging, thresholding, and smearing
@@ -279,18 +282,18 @@ void reco(){
     
     // fill histograms
     h_EnergyTrk             ->Fill(fTrkEnergyDep);
-    h_EnergyTrk_TrueVsReco  ->Fill(fElectronEnergy, fTrkEnergyDep);
-    h_EnergyTrk_TrueVsRes   ->Fill(fElectronEnergy,(fTrkEnergyDep-fElectronEnergy)/fElectronEnergy);
-    h_EnergyTrk_Frac        ->Fill(fElectronEnergy,fTrkEnergyDep/fElectronEnergy);
+    h_EnergyTrk_TrueVsReco  ->Fill(fTrueEnergy, fTrkEnergyDep);
+    h_EnergyTrk_TrueVsRes   ->Fill(fTrueEnergy,(fTrkEnergyDep-fTrueEnergy)/fTrueEnergy);
+    h_EnergyTrk_Frac        ->Fill(fTrueEnergy,fTrkEnergyDep/fTrueEnergy);
     for(size_t iR = 0; iR < v_SphereR.size(); iR++){
-      //float true_shower_edep = fElectronEnergy - fTrkEnergyDep;
+      //float true_shower_edep = fTrueEnergy - fTrkEnergyDep;
       //h_EnergyShw[iR]           ->Fill(fShwEnergyDep[iR]);
       //h_EnergyShw_TrueVsReco[iR]->Fill(true_shower_edep,fShwEnergyDep[iR]);
       //h_EnergyShw_TrueVsRes[iR] ->Fill(true_shower_edep,(fShwEnergyDep[iR]-true_shower_edep)/true_shower_edep);
       h_EnergyTotal[iR]           ->Fill(fTotalEnergyDep[iR]);
-      h_EnergyTotal_TrueVsReco[iR]->Fill(fElectronEnergy,fTotalEnergyDep[iR]);
-      h_EnergyTotal_TrueVsRes[iR] ->Fill(fElectronEnergy,(fTotalEnergyDep[iR]-fElectronEnergy)/fElectronEnergy);
-      h_EnergyTotal_Frac[iR]      ->Fill(fElectronEnergy,fTotalEnergyDep[iR]/fElectronEnergy);
+      h_EnergyTotal_TrueVsReco[iR]->Fill(fTrueEnergy,fTotalEnergyDep[iR]);
+      h_EnergyTotal_TrueVsRes[iR] ->Fill(fTrueEnergy,(fTotalEnergyDep[iR]-fTrueEnergy)/fTrueEnergy);
+      h_EnergyTotal_Frac[iR]      ->Fill(fTrueEnergy,fTotalEnergyDep[iR]/fTrueEnergy);
     }
 
   }//>> end loop over events

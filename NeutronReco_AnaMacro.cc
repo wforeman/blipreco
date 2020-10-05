@@ -39,6 +39,9 @@ TVector3  fStartPoint;
 TFile*    fOutFile;
 TTree*    fTree;
 TH2D*     h_Energy_TrueVsReco;
+TH1D*     h_BlipMult;
+TH1D*     h_MaxBlipE;
+TH1D*     h_AveBlipE;
 
 void configure(){
   
@@ -56,6 +59,10 @@ void configure(){
                                    "R=60cm;True Neutron Energy (MeV);Reconstructed Energy (MeV)",
                                   100,0,20,100,0,20);
   h_Energy_TrueVsReco->SetOption("COLZ");
+  
+  h_MaxBlipE        = new TH1D("MaxBlipE","Maximum Blip Energy (``trunk'' candidate);Energy (MeV);Entries",3000,0.0,30.0);
+  h_AveBlipE        = new TH1D("AveBlipE","Average Blip Energy;Energy (MeV);Entries",1000,0.0,10.);
+  h_BlipMult        = new TH1D("BlipMult","Blip Multiplicity;Number of Blips Per Event",100,0,100);
 
 }
 
@@ -70,6 +77,9 @@ void NeutronReco_AnaMacro(){
 
   // write histos
   h_Energy_TrueVsReco->Write();
+  h_BlipMult->Write();
+  h_MaxBlipE->Write();
+  h_AveBlipE->Write();
   fOutFile->Close();
   return;
 }
@@ -115,7 +125,8 @@ void reco(){
 
       // is it an electron/positron?
       if(     fabs(pdg) == 11 
-          ||  (pdg==2212 && KE > 3.) ){
+//          ||  (pdg==2212 && KE > 3.) )
+      ){
         EnergyDeposit b;
         b.Location = loc;
         b.Energy = edep;
@@ -151,19 +162,29 @@ void reco(){
     printf("Event %5d -- smear: %6.2f keV, blips found: %d\n",iEvent,fSmear*1e3,(int)v_blips.size());
   
     fRecoEnergy = 0.;
+    float maxBlipE    = -999.;
+    float sumE = 0.;
     for(size_t i=0; i<v_blips.size(); i++){
       EnergyDeposit thisBlip = v_blips.at(i);
+      float E = thisBlip.Energy;
+      sumE += E;
+      if( E > maxBlipE ) maxBlipE = E;
       float d = (thisBlip.Location - fStartPoint).Mag();
       if( d < fSphereR || fSphereR < 0 ) {
         fRecoEnergy += thisBlip.Energy;
       }
     }
 
+    float aveBlipE = sumE / v_blips.size();
     //if( fRecoEnergy > (fNeutronEnergy) ) std::cout<<"WTF\n";
 
     // fill histograms
     if( fNeutronEnergy > 0.2 ) 
     h_Energy_TrueVsReco->Fill(fNeutronEnergy,fRecoEnergy);
+   
+    h_AveBlipE->Fill(aveBlipE); 
+    h_MaxBlipE->Fill(maxBlipE);
+    h_BlipMult->Fill(v_blips.size());
 
   }
 

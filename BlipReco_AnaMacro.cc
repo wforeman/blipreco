@@ -15,10 +15,10 @@
 // ============================================================
 // ===================   Parameters ===========================
 #define nconfigs_SphereR 3
-//std::string             fFileName     = "../mcfiles/anatree_gamma1_larworld.root";
+std::string             fFileName     = "../mcfiles/anatree_gamma1_larworld.root";
 //std::string             fFileName    = "../mcfiles/anatree_gamma2_larworld.root";
 //std::string             fFileName    = "../mcfiles/anatree_neutrons_1eV.root";
-std::string             fFileName    = "../mcfiles/anatree_neutron_10MeV_larworld.root";
+//std::string             fFileName    = "../mcfiles/anatree_neutron_10MeV_larworld.root";
 std::string             fTreeName     = "analysistree/anatree";
 std::string             fOutFileName  = "plots.root";
 float                   fThreshold    = 0.0750; // 75 keV
@@ -43,6 +43,11 @@ void doFits(TH1D*);
 TFile*    fOutFile;
 TTree*    fTree;
 
+TH1D*     h_ElEnergy_fromEl;
+TH1D*     h_ElEnergy_fromPh;
+TH1D*     h_ElEnergy_fromBrem;
+TH1D*     h_BremEnergy;
+
 TH1D*     h_BlipEnergy;
 TH1D*     h_BlipMult;
 TH1D*     h_BlipSeparation;
@@ -53,6 +58,13 @@ TH1D*     h_Energy[nconfigs_SphereR];
 void configure(){
   
   // make the histograms
+  
+  int   bins = 1000;
+  float emax = 2.; // MeV
+  h_ElEnergy_fromEl   = new TH1D("ElEnergy_fromEl",   "Electrons produced by an electron;Kinetic Energy (keV);Entries",     bins,0.0,emax*1e3);
+  h_ElEnergy_fromPh   = new TH1D("ElEnergy_fromPh",   "Electrons produced by a photon;Kinetic Energy (keV);Entries",        bins,0.0,emax*1e3);
+  h_ElEnergy_fromBrem = new TH1D("ElEnergy_fromBrem", "Electrons produced by a bremm. photon;Kinetic Energy (keV);Entries", bins,0.0,emax*1e3);
+  h_BremEnergy        = new TH1D("BremEnergy",        "Bremm. photons;Kinetic Energy (keV);Entries",                        bins,0.0,emax*1e3);
   h_BlipEnergy      = new TH1D("BlipEnergy","Individual Blip Energies;Individual Blip Energy (MeV);Entries",1000,0.0,10.0);
   h_BlipMult        = new TH1D("BlipMult","Blip Multiplicity;Number of Blips",100,0,100);
   h_BlipSeparation  = new TH1D("BlipSeparation","Inter-Blip Separation;Separation Distance [cm]",2000,0,100);
@@ -97,7 +109,7 @@ void BlipReco_AnaMacro(){
   // loop over the events
   for(int iEvent=0; iEvent<fTree->GetEntries(); iEvent++){
     fTree->GetEntry(iEvent);
-    
+   
     // Make a vector of Blip objects to fill
     std::vector<EnergyDeposit> v_blips;
     float total_edep = 0.;
@@ -129,6 +141,21 @@ void BlipReco_AnaMacro(){
 
       if( proc == "primary" ) {
         primary_energy += KE;
+      }
+
+      // if bremm photon, record energy
+      if( pdg == 22 && _processname->at(i) == "eBrem" ) h_BremEnergy->Fill(KE*1e3);
+
+      // if electron, record the energy
+      if( fabs(pdg) == 11 ) {
+        int motherPDG = PdgOfMother(trackId);
+        float KE_keV = KE*1e3;
+        if( fabs(motherPDG) == 11 ) h_ElEnergy_fromEl->Fill(KE_keV);
+        if( fabs(motherPDG) == 22 ) {
+          h_ElEnergy_fromPh->Fill(KE_keV);
+          if( ProcessOfMother(trackId) == "eBrem" )
+            h_ElEnergy_fromBrem->Fill(KE_keV);
+        }
       }
 
       // if electron, make blip
@@ -221,6 +248,10 @@ void BlipReco_AnaMacro(){
   //doFits(h_EnergySmeared[1]);
 
   // save all the lower-level histograms
+  h_BremEnergy->Write();
+  h_ElEnergy_fromEl->Write();
+  h_ElEnergy_fromPh->Write();
+  h_ElEnergy_fromBrem->Write();
   h_BlipEnergy->Write();
   h_BlipMult->Write();
   h_BlipSeparation->Write();
