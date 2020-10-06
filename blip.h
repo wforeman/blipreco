@@ -19,8 +19,6 @@
 #include <vector>
 #include <math.h>
 
-// Testing 
-
 bool IsParticleDescendedFrom(int,int);
 bool IsParticleDescendedFrom(int,int,bool);
 int  PdgOfMother(int);
@@ -32,6 +30,7 @@ TRandom2 *fRand = new TRandom2();
 // Data structure for "blip" object
 struct EnergyDeposit {
   TVector3  Location;
+  float     Time;
   float     Energy;
   float     PathLength;
   bool      isGrouped;
@@ -240,6 +239,7 @@ void MergeBlips(std::vector<EnergyDeposit> &v, float sep){
     newBlip.Energy = v.at(i).Energy;
     newBlip.Location = v.at(i).Location;
     newBlip.PathLength = v.at(i).PathLength;
+    newBlip.Time      = v.at(i).Time;
     for(int j=i+1; j<v.size(); j++){
       if( v.at(j).isGrouped ) continue;
       float d = (v.at(i).Location - v.at(j).Location).Mag();
