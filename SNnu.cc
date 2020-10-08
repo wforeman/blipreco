@@ -24,7 +24,7 @@ float                   fMinSep       = 0.20;   //> Min blip separation used
                                                 //  during blip merging stage
 
 //===============================================================
-void BlipReco_SNnu_vs_nCapture();
+void SNnu();
 void configure();
 
 TFile*    fOutFile;
@@ -36,6 +36,8 @@ TH1D*     h_MaxBlipE;
 TH2D*     h_NuEnergy_vs_BlipMult;
 TH2D*     h_NuEnergy_vs_AveBlipE;
 TH2D*     h_NuEnergy_vs_MaxBlipE;
+
+TH1D*     h_NeutronEnergy;
   
 TH2D*     h_EnergyTrk_TrueVsReco;
 TH2D*     h_EnergyTrk_TrueVsRes;
@@ -44,6 +46,9 @@ TH2D*     h_EnergyTotal_TrueVsRes;
 
 TH1D*     h_Energy_vs_Res_Trk;
 TH1D*     h_Energy_vs_Res_Total;
+
+TH1D*     h_Energy_vs_RMS_Trk;
+TH1D*     h_Energy_vs_RMS_Total;
 
 //================================================================
 void configure(){
@@ -62,13 +67,15 @@ void configure(){
   float resbins_energy    = 24;
   float resbins           = 400;
   h_EnergyTrk_TrueVsReco  = new TH2D("EnergyTrk_TrueVsReco","Electron Track;True Energy (MeV);Reconstructed Track Energy (MeV)",
-                                      120,0,60,120,0,60);
+                                      //120,0,60,120,0,60);
+                                      resbins_energy,0,60,120,0,60);
   h_EnergyTrk_TrueVsRes   = new TH2D("EnergyTrk_TrueVsRes","Electron Track;True Energy (MeV);Resolution",
                                       resbins_energy,0,60,resbins,-1.,1.);
   h_EnergyTrk_TrueVsReco  ->SetOption("colz");
   h_EnergyTrk_TrueVsRes   ->SetOption("colz");
   h_EnergyTotal_TrueVsReco  = new TH2D("EnergyTotal_TrueVsReco","Electron Track + Blips (< 30cm);True Energy (MeV);Reconstructed Energy (MeV)",
-                                      120,0,60,120,0,60);
+                                      //120,0,60,120,0,60);
+                                      resbins_energy,0,60,120,0,60);
   h_EnergyTotal_TrueVsRes   = new TH2D("EnergyTotal_TrueVsRes","Electron Track + Blips (< 30cm);True Energy (MeV);Resolution",
                                       resbins_energy,0,60,resbins,-1.,1.);
   h_EnergyTotal_TrueVsReco  ->SetOption("colz");
@@ -78,7 +85,12 @@ void configure(){
                                       resbins_energy,0,60);
   h_Energy_vs_Res_Total     = new TH1D("Energy_vs_Res_Total","Electron Track;True Neutrino Energy (MeV);RMS Resolution",
                                       resbins_energy,0,60);
+  h_Energy_vs_RMS_Trk     = new TH1D("Energy_vs_RMS_Trk","Electron Track;True Neutrino Energy (MeV);Reconstructed Energy RMS",
+                                      resbins_energy,0,60);
+  h_Energy_vs_RMS_Total     = new TH1D("Energy_vs_RMS_Total","Electron Track;True Neutrino Energy (MeV);Reconstructed Energy RMS",
+                                      resbins_energy,0,60);
 
+    
   // open the file and set up the TTree
   TFile* file = new TFile(fFileName.c_str(),"READ");
   fTree = (TTree*)file->Get(fTreeName.c_str());
@@ -87,7 +99,7 @@ void configure(){
 
 
 // =============================================================
-void BlipReco_SNnu_vs_nCapture(){
+void SNnu(){
 
   // configure histograms and TFile
   configure();
@@ -213,6 +225,8 @@ void BlipReco_SNnu_vs_nCapture(){
     float En = h_EnergyTrk_TrueVsRes->GetXaxis()->GetBinCenter(i);
     if( En < 5 || En > 50 ) continue;
 
+    std::cout<<"Looking at bin "<<i<<" corresponding to energy "<<En<<" MeV\n";
+    
     TH1D* h_pjy_trk = h_EnergyTrk_TrueVsRes->ProjectionY("blah1",i,i);
     TH1D* h_pjy_tot = h_EnergyTotal_TrueVsRes->ProjectionY("blah2",i,i);
     
@@ -223,8 +237,18 @@ void BlipReco_SNnu_vs_nCapture(){
     float res_tot = h_pjy_tot->GetRMS(); //h_pfx_tot->GetBinError(i);
     h_Energy_vs_Res_Trk->SetBinContent(i,res_trk);
     h_Energy_vs_Res_Total->SetBinContent(i,res_tot);
-    
+  
+    TH1D* h_p_trk = h_EnergyTrk_TrueVsReco->ProjectionY("blah3",i,i);
+    TH1D* h_p_tot = h_EnergyTotal_TrueVsReco->ProjectionY("blah4",i,i);
+    TCanvas* c1 = new TCanvas(Form("bin %lu",i),Form("bin %lu",i));
+    h_p_tot->DrawCopy();
+    h_Energy_vs_RMS_Trk   ->SetBinContent(i,h_p_trk->GetRMS()/h_p_trk->GetMean());
+    h_Energy_vs_RMS_Total ->SetBinContent(i,h_p_tot->GetRMS()/h_p_tot->GetMean());
+
   }
+
+
+
 
   
   // ------------------------------------------------- 
@@ -246,6 +270,8 @@ void BlipReco_SNnu_vs_nCapture(){
   h_EnergyTotal_TrueVsRes->Write();
   h_Energy_vs_Res_Trk->Write();
   h_Energy_vs_Res_Total->Write();
+  h_Energy_vs_RMS_Trk->Write();
+  h_Energy_vs_RMS_Total->Write();
   fOutFile->Close();
   return;
 }

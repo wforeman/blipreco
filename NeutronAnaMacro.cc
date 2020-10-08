@@ -1,21 +1,23 @@
 //////////////////////////////////////////////////////////////////
-// 
-//  Must have ROOT data file containing analysistree/anatree in 
-//  same directory.
+//  
+//  NEUTRON ANALYSIS
+//
+//  This macro is specialized to look at the MC neutron events and
+//  look at various diagnostics as well as resolution slices.
 //
 //  To run:
-//  > root -l BlipReco_AnaMacro.cc
+//  > root -l macro.cc
 //
 ////////////////////////////////////////////////////////////////// 
-#include "blip.h"
-#include "tools.h"
+#include "core/blip.h"
+#include "core/tools.h"
 
 // ============================================================
 // ===================   Parameters ===========================
-//std::string             fFileName    = "../mcfiles/anatree_gamma2_larworld.root";
-std::string             fFileName    = "../mcfiles/anatree_neutrons_1eV.root";
+//std::string             fFileName    = "../mcfiles/anatree_neutrons_1eV.root";
 //std::string             fFileName    = "../mcfiles/anatree_neutron_0to20MeV_larworld.root";
-//std::string             fFileName    = "../mcfiles/anatree_neutron_10MeV_larworld.root";
+std::string             fFileName    = "../mcfiles/AnaTree_neutron_10MeV.root";
+
 std::string             fTreeName     = "analysistree/anatree";
 std::string             fOutFileName  = "plots.root";
 float                   fThreshold    = 0.100; // MeV (default 0.075)
@@ -26,18 +28,15 @@ std::vector<float>      fSphereR      = {30., 60.};
 
 //===============================================================
 
-void NeutronReco_AnaMacro();
+void NeutronAnaMacro();
 void configure();
 void reco();
 void makePlots();
 
-void BlipGrouping(std::vector<EnergyDeposit> blips );
-
-TVector3  fStartPoint;
+TVector3  fPrimaryStartPoint;
 float     fNeutronEnergy;
 float     fRecoEnergy[NSphereR];
 int     fRecoMult[NSphereR];
-float     fNCaptures;
 
 TFile*    fOutFile;
 TTree*    fTree;
@@ -55,6 +54,9 @@ TH1D*     h_NCaptDist;
 TH1D*     h_NCaptGammaE;
 TH1D*     h_NCaptGammaESum;
 TH1D*     h_NScatGammaE;
+TH1D*     h_NScatPerEvt;
+TH2D*     h_Energy_vs_NScatPerEvt;
+TH2D*     h_IncEnergy_vs_NScatGammaESum;
 TH2D*     h_Energy_TrueVsReco[NSphereR];
 TH1D*     h_RecoEnergy[NSphereR];
 TH1D*     h_RecoMult[NSphereR];
@@ -80,11 +82,17 @@ void configure(){
   h_TotBlipE        = new TH1D("TotBlipE",  "Summed blip energy;Energy (MeV);Events", 300,0,30);
   h_Mult            = new TH1D("Mult",  "Blip multiplicity;Number of blips;Events", 100,0,100);
   h_NCaptPerEvt     = new TH1D("NCaptPerEvt","Neutron capture multiplicity;Number of captures;Events",10,0,10);
+  h_NScatPerEvt     = new TH1D("NScatPerEvt","Number of inelastic neutron scatters per event;Number of scatters",10,0,10);
   h_NCaptTime       = new TH1D("NCaptTime",";Time of neutron capture (#mus);Events",1000,0,3000);
-  h_NCaptDist       = new TH1D("NCaptDist",";Distance of neutron capture (cm);Events",100,0,50000);
+  h_NCaptDist       = new TH1D("NCaptDist",";Distance of neutron capture (cm);Events",1000,0,50000);
   h_NCaptGammaE     = new TH1D("NCaptGammaE","Individual neutron capture #gamma's;Energy (MeV)",280,0,7);
   h_NCaptGammaESum  = new TH1D("NCaptGammaESum","Summed neutron capture #gamma's;Energy (MeV)",280,0,7);
   h_NScatGammaE     = new TH1D("NScatGammaE","Single gammas from neutron inelastic scatters;Energy (MeV)",280,0,7);
+  h_Energy_vs_NScatPerEvt = new TH2D("Energy_vs_NScatPerEvt",";Primary neutron energy (MeV);Number of inelastic scatters",100,0,20,10,0,10);
+  h_IncEnergy_vs_NScatGammaESum  = new TH2D("IncEnergy_vs_GammaESum","Neutron inelastic scatters;Incident neutron energy (MeV);Summed E_{#gamma} from interaction (MeV)",100,0,20,200,0,20);
+  
+  h_Energy_vs_NScatPerEvt->SetOption("colz");
+  h_IncEnergy_vs_NScatGammaESum->SetOption("colz");
 
   for(int i=0; i<fSphereR.size(); i++){
     h_Energy_TrueVsReco[i]   = new TH2D(Form("Energy_TrueVsReco_%2.0fcm",fSphereR.at(i)),Form("R=%2.0f;True Neutron Energy (MeV);Reconstructed Energy (MeV)",fSphereR.at(i)),
@@ -100,7 +108,7 @@ void configure(){
 
 
 // =============================================================
-void NeutronReco_AnaMacro(){
+void NeutronAnaMacro(){
   
   // configure histograms and TFile
   configure();
@@ -116,11 +124,14 @@ void NeutronReco_AnaMacro(){
   h_TotBlipE      ->Write();
   h_Mult          ->Write();
   h_NCaptPerEvt   ->Write();
+  h_NScatPerEvt   ->Write();
   h_NCaptTime     ->Write();
   h_NCaptDist     ->Write();
   h_NCaptGammaE   ->Write();
   h_NCaptGammaESum->Write();
   h_NScatGammaE   ->Write();
+  h_Energy_vs_NScatPerEvt->Write();
+  h_IncEnergy_vs_NScatGammaESum->Write();
 
   for(size_t i=0; i<fSphereR.size(); i++) h_Energy_TrueVsReco[i]->Write();
   for(size_t i=0; i<fSphereR.size(); i++) h_RecoEnergy[i]->Write();
@@ -140,12 +151,10 @@ void reco(){
   for(int iEvent=0; iEvent<fTree->GetEntries(); iEvent++){
     fTree->GetEntry(iEvent);
  
-    // Reset class variables (event-wise)
-    fNeutronEnergy  = -999.;
-
-    // Counters
+    // Event-wise values to keep track of
+    fNeutronEnergy        = -999.;
     int nCapturesPerEvent = 0;
-    float nCaptGammaESum = 0.;
+    int nScattersPerEvent = 0;
 
     // Make a vector of blip objects to fill,
     std::vector<EnergyDeposit> v_blips;
@@ -156,7 +165,7 @@ void reco(){
     for(int i=0; i<nParticles; i++){
 
       TVector3 loc(_StartPointx[i],_StartPointy[i],_StartPointz[i]);
-      TVector3 locEnd(_EndPointx[i],_EndPointy[i],_EndPointz[i]);
+      //TVector3 locEnd(_EndPointx[i],_EndPointy[i],_EndPointz[i]);
       std::string proc = _processname->at(i);
       int   pdg     = _pdg[i];
       int   trackId = _TrackId[i]; 
@@ -172,33 +181,71 @@ void reco(){
       total_edep += edep;
       
 
-      // -------------------------------
+
+      // =====================================================
       // Neutron checks
+      
       if( pdg == 2112 ) {
-        
+
         // Primary?
         if( proc == "primary" ) {
-          fNeutronEnergy  = KE;
-          fStartPoint     = loc;
+          fNeutronEnergy      = KE;
+          fPrimaryStartPoint  = loc;
         }
-        
-        // Does it capture?
+
+        bool  isScatter = false;
+        bool  isCapture = false;
+        float gammaEsum_capt = 0;
+        float gammaEsum_scat = 0;
+
+        // Note that at low enough energy, < ~2.9 MeV, the SAME neutron can
+        // both scatter and capture, without a new particle being created in
+        // the list.
+
+        // Figure out what the neutron eventually does
+        // by looking for daughters
         for(int ii=i; ii<nParticles; ii++){
-          if( _Mother[ii] == trackId && _processname->at(ii) == "nCapture" ) {
-            nCapturesPerEvent++;
-            fNCaptures++;
-            TVector3 capturePoint;
-            capturePoint.SetXYZ(_StartPointx[ii],_StartPointy[ii],_StartPointz[ii]);
-            h_NCaptDist->Fill( (capturePoint-fStartPoint).Mag() );
-            h_NCaptTime->Fill( _StartT[ii]*1e-3 );
-            break;
+          if( _pdg[ii] == 22 && _Mother[ii] == trackId ) {
+
+            float Eg = 1e3*_Eng[ii];
+
+            // CAPTURE?
+            if( _processname->at(ii) == "nCapture" ) {
+              gammaEsum_capt += Eg;
+              h_NCaptGammaE->Fill(Eg);
+              if( !isCapture ) {
+                isCapture = true;
+                nCapturesPerEvent++;
+                TVector3 capturePoint;
+                capturePoint.SetXYZ(_StartPointx[ii],_StartPointy[ii],_StartPointz[ii]);
+                h_NCaptDist->Fill( (capturePoint-fPrimaryStartPoint).Mag() );
+                h_NCaptTime->Fill( _StartT[ii]*1e-3 );
+              }
+            }
+
+            //INELASTIC SCATTER?
+            if( _processname->at(ii) == "neutronInelastic" ) {
+              gammaEsum_scat += Eg;
+              h_NScatGammaE->Fill(Eg);
+              if( !isScatter ) {
+                isScatter = true;
+                nScattersPerEvent++;
+              }
+            }
+            
           }
-        }
+        }//< end determination of capture/scatter
+
+        if( isCapture ) h_NCaptGammaESum->Fill(gammaEsum_capt);
+        if( isScatter ) h_IncEnergy_vs_NScatGammaESum->Fill(KE,gammaEsum_scat);
 
       }//<-- end neutron stuff
+      // =====================================================
 
 
-      // ------------------------------
+
+
+      // =====================================================
       // Blip construction (electrons/positrons)
       if( fabs(pdg) == 11 ){
         EnergyDeposit b;
@@ -209,28 +256,18 @@ void reco(){
         v_blips.push_back(b);
         h_BlipTime->Fill(startT*1e-3);
       }
-
-      // ----------------------------------------
-      // Check for neutron capture gammas
-      if( pdg == 22 && proc == "nCapture" ) {
-        h_NCaptGammaE->Fill(KE);
-        nCaptGammaESum += KE;
-      }
-
-      // ---------------------------------------
-      // Check for neutron inelastic scatter gammas
-      if( pdg == 22 && proc == "neutronInelastic" ) {
-        h_NScatGammaE->Fill(KE);
-      }
+      // =====================================================
       
+
       // debugging output
       if(0){
-        printf("  %3i PDG: %10i,  dL=%8.3f, KE0=%8.3f,  KEf=%8.3f, Edep=%8.3f, T0=%8.3f, Tf=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
+        printf("  %3i PDG: %10i,  dL=%8.3f, d0=%8.3f, KE0=%8.3f, Edep=%8.3f, T0=%8.3f, Tf=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
         trackId,
         pdg,
         dL,
+        (loc-fPrimaryStartPoint).Mag(),
         KE,
-        KEf,
+        //KEf,
         edep,
         startT,
         endT,
@@ -238,13 +275,15 @@ void reco(){
         proc.c_str(),
         nD
         );
-      } 
+      }
+      
     }//>> end particle loop
 
     // ---------------------------------
     // Per event neutron plots
     h_NCaptPerEvt->Fill(nCapturesPerEvent);
-    if( nCapturesPerEvent == 1 ) h_NCaptGammaESum->Fill(nCaptGammaESum);
+    h_NScatPerEvt->Fill(nScattersPerEvent);
+    h_Energy_vs_NScatPerEvt->Fill(fNeutronEnergy,nScattersPerEvent);
 
     // ---------------------------------
     // merging, thresholding, and smearing
@@ -261,12 +300,15 @@ void reco(){
       fRecoEnergy[i] = 0.;
       fRecoMult[i] = 0;
     }
+
+    TVector3 sphereCenter = fPrimaryStartPoint;
+
     // Find the largest blip
     float maxBlipE  = -999.;
     for(size_t i=0; i<v_blips.size();i++){
       if( v_blips.at(i).Energy > maxBlipE ) {
         maxBlipE = v_blips.at(i).Energy;
-        fStartPoint = v_blips.at(i).Location; // !!!!!!! temp 2020-10-05
+        sphereCenter = v_blips.at(i).Location;
       }
     }
     float sumE      = 0.;
@@ -274,7 +316,7 @@ void reco(){
       EnergyDeposit thisBlip = v_blips.at(i);
       float E = thisBlip.Energy;
       sumE += E;
-      float d = (thisBlip.Location - fStartPoint).Mag();
+      float d = (thisBlip.Location - sphereCenter).Mag();
       
       for(size_t j=0; j<fSphereR.size(); j++ ){
         if( d < fSphereR.at(j) || fSphereR.at(j) < 0 ) {
@@ -298,84 +340,10 @@ void reco(){
     h_MaxBlipE->Fill(maxBlipE);
     h_Mult->Fill(v_blips.size());
     
-    //-----------------------------------------------
-    // Iterative blip 
-    //BlipGrouping( v_blips );
-  
   }
 
 }
 
-
-
-// =============================================================
-void BlipGrouping(std::vector<EnergyDeposit> blips ){
-  // Now that we've saved all the interesting blips, we will perform
-  // the iterative sphere-drawing method where for gamma reconstruction
-  //   (a) Identify highest-E blip
-  //   (b) Draw sphere centered on that blip, and
-  //       add up energies of all blips inside sphere
-  //   (3) Locate highest-E blip of those that were not 
-  //       grouped into the first sphere, and repeat,
-  //       only grouping previously un-grouped blips.
-  
-  // Loop through the sphere sizes
-  for(size_t iR = 0; iR < fSphereR.size(); iR++){
-   
-    // sphere radius
-    float R = fSphereR.at(iR);
-
-    // "ungroup" all the blips
-    for(size_t i=0; i<blips.size(); i++) blips.at(i).isGrouped = false;
-    size_t blips_grouped = 0;
-
-    while( blips_grouped < blips.size() ) { 
-      
-      // sum E
-      float sumE          = 0.;
-
-      // find largest un-grouped blip
-      float E_highest = -9.;
-      TVector3 sphereCenter;
-      for(size_t i=0; i<blips.size(); i++){
-        EnergyDeposit thisBlip = blips.at(i);
-        if( thisBlip.isGrouped ) continue;
-        if( thisBlip.Energy > E_highest ) {
-          E_highest = thisBlip.Energy;
-          sphereCenter = thisBlip.Location;
-        }
-      }
-    
-      // keep count of the blips that go into this sphere
-      int nblips_sphere = 0;
-
-      // now group blips that fall in this sphere
-      for(size_t i=0; i<blips.size(); i++){
-        EnergyDeposit thisBlip = blips.at(i);
-        if( thisBlip.isGrouped ) continue;
-        float d = (thisBlip.Location - sphereCenter).Mag();
-        if( d < R ) {
-          blips.at(i).isGrouped = true;
-          blips_grouped++;
-          nblips_sphere++;
-          sumE += thisBlip.Energy;
-        }
-      }
-      
-      // fill the histos
-      // for the neutron cases, we throw out any sphere whose center
-      // is > 2.5 m from the primary generation point (Whit's cut)
-      //if( !(primPDG == 2112) || (sphereCenter-primLoc).Mag() < 100. ) {
-        //h_Energy[iR]      ->Fill(sumE);
-        //h_Energy_zoom[iR] ->Fill(sumE);
-        //h_BlipMultSphere[iR]->Fill(nblips_sphere);
-      //}
-
-    }//<< end while(ungrouped blips)
-
-  }//<< end loop over sphere radii
-
-}
 
 
 // ============================================================

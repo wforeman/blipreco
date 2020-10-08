@@ -88,8 +88,8 @@ void setBranches(TTree *tree){
 //==============================================================
 float CalcEnergyDepParticle(int iP){
   
-  // if photon, no deposited energy
-  if( _pdg[iP] == 22 ) return 0.;
+  // if photon or neutron, no deposited energy
+  if( _pdg[iP] == 22 || _pdg[iP] == 2112 ) return 0.;
   
   // at first approximation, Edep is energy difference 
   float Edep = 1e3*(_Eng[iP] - _EndE[iP]);
