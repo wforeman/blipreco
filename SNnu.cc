@@ -9,12 +9,12 @@
 //  > root -l BlipReco_SNnu_vs_nCapture.cc
 //
 ////////////////////////////////////////////////////////////////// 
-#include "blip_nu.h"
-#include "tools.h"
+#include "core/blip_nu.h"
+#include "core/tools.h"
 
 // ===================   Parameters ===========================
-//std::string             fFileName     = "../mcfiles/anatree_neutrons_1eV.root";
-std::string             fFileName     = "../mcfiles/AnaTree_SNnueCC.root";
+std::string             fFileName     = "../mcfiles/AnaTree_SNnue_CC.root";
+//std::string             fFileName     = "../mcfiles/AnaTree_SNnu_ES.root";
 std::string             fTreeName     = "analysistree/anatree";
 std::string             fOutFileName  = "plots.root";
 
@@ -131,16 +131,19 @@ void SNnu(){
       std::string proc = _processname->at(i);
       int mother    = _Mother[i];
       int nD        = _NumberDaughters[i];
+      float E       = 1e3*_Eng[i];
       //float dL      = _pathlen[i];
-     
+      
+      float edep = 0.;
+
       // if electron, make blip
       if( fabs(pdg) == 11 ) {
-        float edep = CalcEnergyDep(i);
+        edep = CalcEnergyDep(i);
       
         if( proc == "primary" ) {
-          elEnergy = _Eng[i]*1e3;
+          elEnergy    = E;
           elEnergyDep = edep;
-          nuVert = loc;
+          nuVert      = loc;
         } 
         else { 
         EnergyDeposit b;
@@ -152,20 +155,16 @@ void SNnu(){
       }
       
       // (for debugging output -- keep commented out during normal running)
-      /*
-        printf("  %3i PDG: %10i,  dL=%8.3f, KE0=%8.3f,  KEf=%8.3f, Edep=%8.3f, T0=%8.3f, Tf=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
+      if(0){
+        printf("  %3i PDG: %10i, E=%8.3f,Edep=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
           trackId,
           pdg,
-          dL,
-          KE,
-          KEf,
+          E,
           edep,
-          startT,
-          endT,
           mother,
           proc.c_str(),
           nD);
-      */
+      }
 
     }//>> end particle loop
     

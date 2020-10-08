@@ -38,12 +38,13 @@ struct EnergyDeposit {
 
 // AnaTree variables
 const int kMax = 10000;
+double    _NuEnergy;
 int       _event;
 int       _no_hits_stored;
 int       _geant_list_size;
 int       _inTPCActive[kMax];
 int			  _pdg[kMax];
-float		  _Mass[kMax];
+float     _Mass[];
 float     _Eng[kMax];
 float     _EndE[kMax];
 float     _StartT[kMax];
@@ -91,7 +92,7 @@ float CalcEnergyDepParticle(int iP){
   // if photon or neutron, no deposited energy
   if( _pdg[iP] == 22 || _pdg[iP] == 2112 ) return 0.;
   
-  // at first approximation, Edep is energy difference 
+  // at first approximation, Edep is the energy difference
   float Edep = 1e3*(_Eng[iP] - _EndE[iP]);
 
   // if there are daughters, we may need to subtract their energy
