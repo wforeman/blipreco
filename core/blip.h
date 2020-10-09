@@ -19,6 +19,9 @@
 #include <vector>
 #include <math.h>
 
+bool DriftTimeCorrection = true;
+float driftVel = 0.15*1e-3; // cm/us
+
 bool IsParticleDescendedFrom(int,int);
 bool IsParticleDescendedFrom(int,int,bool);
 int  PdgOfMother(int);
@@ -35,6 +38,7 @@ struct EnergyDeposit {
   float     PathLength;
   bool      isGrouped;
 };
+
 
 // AnaTree variables
 const int kMax = 10000;
@@ -85,6 +89,7 @@ void setBranches(TTree *tree){
   tree->SetBranchAddress("TrackId",&_TrackId);
   tree->SetBranchAddress("processname",&_processname,&br);
 }
+
 
 //==============================================================
 float CalcEnergyDepParticle(int iP){
@@ -148,6 +153,20 @@ float CalcEnergyDep(int iP){
 
   return Edep;
 
+}
+
+//===============================================================
+EnergyDeposit MakeNewBlip(int i){
+  EnergyDeposit b;
+  b.Location.SetXYZ(_StartPointx[i],_StartPointy[i],_StartPointz[i]);
+  b.Energy = CalcEnergyDep(i);
+  b.Time = _StartT[i];
+  if( DriftTimeCorrection ) {
+    float x0 = b.Location.X();
+    b.Location.SetX( x0 + driftVel*b.Time);
+  }
+
+  return b;
 }
 
 //============================================================

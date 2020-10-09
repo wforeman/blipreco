@@ -112,21 +112,13 @@ void AnaMacro_Ar39(){
       if( fabs(_pdg[i]) == 11 ){
         float edep = CalcEnergyDep(i);
         h_Edep_PerElectron->Fill(edep);
-        EnergyDeposit b;
-        b.Location = loc;
-        b.Energy = edep;
-        b.Time = _StartT[i];
-        v_blips.push_back(b);
-        //if( edep > 0.010 ) v_blips.push_back(b);
-        // "golden" blips are those that are far enough
-        // away from the edges to avoid edge effects when sphere-drawing
-        //if( isInActiveVol(loc,v_SphereR.back()) ) {
-        //  if( edep > 0.075 ) { nGolden++; v_blips_golden.push_back(b); }
-        //  if( edep > 0.300 ) { nGolden_300++; }
-        //}
+//        EnergyDeposit b;
+//        b.Location = loc;
+//        b.Energy = edep;
+//        b.Time = _StartT[i];
+//        v_blips.push_back(b);
+        v_blips.push_back(MakeNewBlip(i));
       }
-
-    
 
     }//>> end particle loop
    
