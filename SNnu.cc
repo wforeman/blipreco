@@ -13,8 +13,8 @@
 #include "core/tools.h"
 
 // ===================   Parameters ===========================
-std::string             fFileName     = "../mcfiles/AnaTree_SNnue_CC.root";
-//std::string             fFileName     = "../mcfiles/AnaTree_SNnu_ES.root";
+//std::string             fFileName     = "../mcfiles/AnaTree_SNnue_CC.root";
+std::string             fFileName     = "../mcfiles/AnaTree_SNnu_ES.root";
 std::string             fTreeName     = "analysistree/anatree";
 std::string             fOutFileName  = "plots.root";
 
@@ -44,6 +44,11 @@ TH2D*     h_EnergyTrk_TrueVsRes;
 TH2D*     h_EnergyTotal_TrueVsReco;
 TH2D*     h_EnergyTotal_TrueVsRes;
 
+TH2D*     h_Mult_vs_Energy;
+TH2D*     h_Mult_vs_MaxBlipE;
+TH2D*     h_Mult_vs_Displacement;
+TH2D*     h_Mult_vs_Ratio;
+
 TH1D*     h_Energy_vs_Res_Trk;
 TH1D*     h_Energy_vs_Res_Total;
 
@@ -60,9 +65,18 @@ void configure(){
   h_NuEnergy_vs_BlipMult = new TH2D("NuEnergy_vs_BlipMult",";Neutrino Energy (MeV);Blip Multiplicity per Event",60,0,60,50,0,50);
   h_NuEnergy_vs_AveBlipE = new TH2D("NuEnergy_vs_AveBlipE",";Neutrino Energy (MeV);Average Blip Energy (MeV)",120,0,60,100,0,10);
   h_NuEnergy_vs_MaxBlipE = new TH2D("NuEnergy_vs_MaxBlipE",";Neutrino Energy (MeV);Max Blip Energy (MeV)",120,0,60,120,0,60);
+
+  h_Mult_vs_Energy    = new TH2D("Mult_vs_Energy",";Blip Multiplicity;Summed Blip Energy (MeV)",25,0,25,30,0,30.);
+  h_Mult_vs_MaxBlipE  = new TH2D("Mult_vs_MaxBlipE",";Blip Multiplicity;Max Blip Energy (MeV)",25,0,25,25,0,10.);
+  h_Mult_vs_Displacement = new TH2D("Mult_vs_Displacement",";Blip Multiplicity;Magnitude of Mean Displacement (cm)",25,0,25,30,0,30.);
+  h_Mult_vs_Ratio = new TH2D("Mult_vs_Ratio",";Blip Multiplicity;Ratio of E_{blips} to E_e",25,0,25,25,0,1.);
   h_NuEnergy_vs_BlipMult->SetOption("colz");
   h_NuEnergy_vs_AveBlipE->SetOption("colz");
   h_NuEnergy_vs_MaxBlipE->SetOption("colz");
+  h_Mult_vs_Energy ->SetOption("colz");
+  h_Mult_vs_MaxBlipE->SetOption("colz");
+  h_Mult_vs_Displacement->SetOption("colz");
+  h_Mult_vs_Ratio->SetOption("colz");
   
   float resbins_energy    = 24;
   float resbins           = 400;
@@ -118,7 +132,6 @@ void SNnu(){
     float elEnergy    = -999.;
     float elEnergyDep = -999.;
     float totalBlipE  = 0.;
-    float maxBlipE    = -999.;
 
     // Loop over particles and fill in the blips.
     int nParticles = _geant_list_size;
@@ -134,25 +147,7 @@ void SNnu(){
       float E       = 1e3*_Eng[i];
       //float dL      = _pathlen[i];
       
-      float edep = 0.;
-
-      // if electron, make blip
-      if( fabs(pdg) == 11 ) {
-        edep = CalcEnergyDep(i);
-      
-        if( proc == "primary" ) {
-          elEnergy    = E;
-          elEnergyDep = edep;
-          nuVert      = loc;
-        } 
-        else { 
-        EnergyDeposit b;
-          b.Energy    = edep;
-          b.Location  = loc;
-          b.isGrouped = false;
-          v_blips.push_back(b);
-        }
-      }
+      float edep = CalcEnergyDep(i);
       
       // (for debugging output -- keep commented out during normal running)
       if(0){
@@ -166,6 +161,23 @@ void SNnu(){
           nD);
       }
 
+      // if electron, make blip
+      if( fabs(pdg) == 11 ) {
+      
+        if( proc == "primary" ) {
+          elEnergy    = E;
+          elEnergyDep = edep;
+          nuVert      = loc;
+        } else if (edep > 0 ) {
+          EnergyDeposit b;
+          b.Energy    = edep;
+          b.Location  = loc;
+          b.isGrouped = false;
+          v_blips.push_back(b);
+        }
+      }
+      
+
     }//>> end particle loop
     
     // .................................
@@ -176,17 +188,27 @@ void SNnu(){
     // do thresholding
     ThresholdBlips(v_blips,fThreshold);
 
-    float totalE_30cm = elEnergyDep;
+    float totalE_30cm = 0.; //elEnergyDep;
+    float maxBlipE    = -999.;
     
     h_NuEnergy->Fill(nuEnergy);    
     h_BlipMult->Fill(v_blips.size());
-    int N = v_blips.size();
-    for(int i=0; i<N; i++){
+    int nBlips = v_blips.size();
+    int nBlips_30cm = 0;
+    TVector3 netVec(0,0,0);
+    for(int i=0; i<nBlips; i++){
       float E = v_blips.at(i).Energy;
       h_BlipEnergy->Fill(E);
       totalBlipE += E;
-      if( E > maxBlipE ) maxBlipE = E;
-      if( (nuVert-v_blips.at(i).Location).Mag() < 30 ) totalE_30cm += E;
+      TVector3 loc = v_blips.at(i).Location;
+      TVector3 d = (loc-nuVert);
+      if( d.Mag() < 30. && d.Mag() > 0.5 )
+      {
+        if( E > maxBlipE ) maxBlipE = E;
+        nBlips_30cm++;
+        totalE_30cm += E;
+        netVec = netVec + d;
+      }
     }
    
     h_MaxBlipE->Fill(maxBlipE); 
@@ -196,9 +218,13 @@ void SNnu(){
 
     h_EnergyTrk_TrueVsReco->Fill( nuEnergy,elEnergyDep);
     h_EnergyTrk_TrueVsRes ->Fill( nuEnergy, (elEnergyDep-nuEnergy)/nuEnergy);
-    h_EnergyTotal_TrueVsReco->Fill( nuEnergy,totalE_30cm);
-    h_EnergyTotal_TrueVsRes ->Fill( nuEnergy, (totalE_30cm-nuEnergy)/nuEnergy);
-
+    h_EnergyTotal_TrueVsReco->Fill( nuEnergy,totalE_30cm+elEnergyDep);
+    h_EnergyTotal_TrueVsRes ->Fill( nuEnergy, (totalE_30cm+elEnergyDep-nuEnergy)/nuEnergy);
+    
+    h_Mult_vs_Energy->Fill(nBlips_30cm,totalE_30cm);
+    h_Mult_vs_MaxBlipE->Fill(nBlips_30cm,maxBlipE); 
+    h_Mult_vs_Displacement->Fill(nBlips_30cm,netVec.Mag()/nBlips_30cm);
+    h_Mult_vs_Ratio->Fill(nBlips_30cm,totalE_30cm/elEnergyDep);
     // ................................
     // do smearing
     SmearBlips(v_blips,fSmear);
@@ -271,6 +297,10 @@ void SNnu(){
   h_Energy_vs_Res_Total->Write();
   h_Energy_vs_RMS_Trk->Write();
   h_Energy_vs_RMS_Total->Write();
+  h_Mult_vs_Energy->Write();
+  h_Mult_vs_MaxBlipE->Write();
+  h_Mult_vs_Displacement->Write();
+  h_Mult_vs_Ratio->Write();
   fOutFile->Close();
   return;
 }

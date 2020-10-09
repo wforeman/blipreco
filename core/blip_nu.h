@@ -93,21 +93,23 @@ float CalcEnergyDepParticle(int iP){
   // For SNnue-CC and SNnu-ES MC, mass and end energy weren't saved,
   // so here we assume it is an electron and it ranges out.
   _EndE[iP] = 0.000511;
-  _Mass[iP] = 0.000511;
+  _Mass[iP] = _EndE[iP];
   // ***************************************************************
   
   // if photon or neutron, no deposited energy
   if( _pdg[iP] == 22 || _pdg[iP] == 2112 ) return 0.;
-  
+ 
+
   // at first approximation, Edep is the energy difference
   float Edep = 1e3*(_Eng[iP] - _EndE[iP]);
-
+  
   // if there are daughters, we may need to subtract their energy
   if( _NumberDaughters[iP] > 0 ) {
     for(size_t i=iP+1; i<_geant_list_size; i++){
       if( _Mother[i] == _TrackId[iP] ) {
        
         float m  = 1e3*_Mass[i];
+        if( _pdg[i] == 22 ) m = 0;
         float KE = 1e3*_Eng[i] - m;
         
         // if Brem photon or ionization electron, subtract off the energy
