@@ -24,13 +24,13 @@ std::vector<float>      v_EThresh   = { 75., 300. }; // keV
 std::vector<Color_t>    v_EThreshCol= { kRed,kBlue};
 float                   fMinSep     = 0.2; 
 bool                    fiducialCut = true;
-int                     nMax        = 100; // # blips selected to draw spheres around 
+int                     nMax        = 50; // # blips selected to draw spheres around 
                                       // (if < 0, uses all available)
-
-// volume dimensions
-float xlim[2] = {-390.,390.};
-float ylim[2] = {-660.,660.};
-float zlim[2] = {-60., 1460.};
+                                      //
+// volume dimensions in which to sample
+float xlim[2] = {0.,350.};
+float ylim[2] = {-600.,600.};
+float zlim[2] = {0., 1390.};
 
 //===============================================================
 
@@ -53,6 +53,8 @@ TH1D*     h_NBlips[nconfigs_EThresh][nconfigs_SphereR];
 TH1D*     h_Edep[nconfigs_EThresh][nconfigs_SphereR];
 
 void configure(){
+
+  DriftTimeCorrection = true;
   
   // check that things are set up correctly
   if( v_SphereR.size() != nconfigs_SphereR || v_EThresh.size() != nconfigs_EThresh ) {
@@ -117,7 +119,8 @@ void AnaMacro_Ar39(){
 //        b.Energy = edep;
 //        b.Time = _StartT[i];
 //        v_blips.push_back(b);
-        v_blips.push_back(MakeNewBlip(i));
+        EnergyDeposit b = MakeNewBlip(i);
+        if( b.Energy > 0 ) v_blips.push_back(b);
       }
 
     }//>> end particle loop
@@ -146,7 +149,7 @@ void AnaMacro_Ar39(){
     // through different sphere sizes and blip thresholds
     loopTheBlips( v_blips, nMax );
 
-    printf("Event %5i -- number blips: %lu\n",iEvent,v_blips.size());
+    printf("Event %5i, drift=%i -- number blips: %lu\n",iEvent,(int)DriftTimeCorrection,v_blips.size());
 
   }//>> end loop over events
 

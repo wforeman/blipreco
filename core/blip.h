@@ -19,8 +19,8 @@
 #include <vector>
 #include <math.h>
 
-bool DriftTimeCorrection = true;
-float driftVel = 0.15*1e-3; // cm/us
+bool DriftTimeCorrection = false;
+float driftVel = 1.6; // in units of cm/us.  V = 0.16 cm/us (DUNE TDR)
 
 bool IsParticleDescendedFrom(int,int);
 bool IsParticleDescendedFrom(int,int,bool);
@@ -161,9 +161,28 @@ EnergyDeposit MakeNewBlip(int i){
   b.Location.SetXYZ(_StartPointx[i],_StartPointy[i],_StartPointz[i]);
   b.Energy = CalcEnergyDep(i);
   b.Time = _StartT[i];
+
+  // -------------------------------------------------------
+  // This part is specific to the DUNE Ar39 sample
   if( DriftTimeCorrection ) {
+    // For DUNE geometry, two different drift volumes each 350cm in X, 
+    // with cathode down the middle at X=0.  In X>0 volume, drift in +X 
+    // direction, so a time delay will make the blip appear to be further 
+    // away from the anode (i.e., blip will shift toward -X). Vice-versa
+    // for X<0.
+    // If a blip appears to leave its original volume, it will not be
+    // considered, so we assign dummy value to energy.
     float x0 = b.Location.X();
-    b.Location.SetX( x0 + driftVel*b.Time);
+    float xnew = x0;
+    if( x0 >= 0 ) {
+      xnew = x0 -1.*(1e-3*driftVel)*b.Time;
+      if( xnew < 0 ) b.Energy = 0.;
+    } else
+    if( x0 < 0 ) {          
+      xnew = x0 +1.*(1e-3*driftVel)*b.Time;
+      if( xnew > 0 ) b.Energy = 0.;
+    }
+    b.Location.SetX( xnew );
   }
 
   return b;
