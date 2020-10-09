@@ -131,15 +131,19 @@ void AnaMacro_Ar39(){
     }//>> end particle loop
    
     // ------------------------------------------------
-    // Merge blips
+    // Merge blips (SKIPPING THIS FOR NOW, SINCE IT TAKES
+    // WAY TOO LONG ON ~9000 AR39 BLIPS!)
     //MergeBlips    (v_blips,fMinSep    );
-    //for(size_t j=0;j<v_blips.size();j++) h_BlipE->Fill(v_blips.at(j).Energy);
+    
+    
+    // fill blip energy histogram
+    for(size_t j=0;j<v_blips.size();j++) h_BlipE->Fill(v_blips.at(j).Energy);
 
     // -----------------------------------------------
     // Make different thresholded subsets
     for(int ie=0; ie<nconfigs_EThresh; ie++){
       std::vector<EnergyDeposit> v_blips_2 = v_blips;
-      ThresholdBlips(v_blips_2,v_EThresh[ie]);
+      ThresholdBlips(v_blips_2,1e-3*v_EThresh[ie]);
       for(size_t j=0;j<v_blips_2.size();j++){
         h_BlipE_thresh[ie]->Fill(v_blips_2.at(j).Energy);
       }
