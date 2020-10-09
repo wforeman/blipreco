@@ -1,7 +1,5 @@
 //////////////////////////////////////////////////////////////////
 // 
-//  BlipReco_SNnu_vs_nCapture
-//
 //  Macro for looking at neutrino CC and ES files from Ivan (their
 //  variables differ from the ones from the SBND ana tree).
 //
@@ -24,7 +22,7 @@ float                   fMinSep       = 0.20;   //> Min blip separation used
                                                 //  during blip merging stage
 
 //===============================================================
-void SNnu();
+void AnaMacro_SNnu();
 void configure();
 
 TFile*    fOutFile;
@@ -48,6 +46,7 @@ TH2D*     h_Mult_vs_Energy;
 TH2D*     h_Mult_vs_MaxBlipE;
 TH2D*     h_Mult_vs_Displacement;
 TH2D*     h_Mult_vs_Ratio;
+TH2D*     h_Mult_vs_ElEnergy;
 
 TH1D*     h_Energy_vs_Res_Trk;
 TH1D*     h_Energy_vs_Res_Total;
@@ -67,9 +66,10 @@ void configure(){
   h_NuEnergy_vs_MaxBlipE = new TH2D("NuEnergy_vs_MaxBlipE",";Neutrino Energy (MeV);Max Blip Energy (MeV)",120,0,60,120,0,60);
 
   h_Mult_vs_Energy    = new TH2D("Mult_vs_Energy",";Blip Multiplicity;Summed Blip Energy (MeV)",25,0,25,30,0,30.);
-  h_Mult_vs_MaxBlipE  = new TH2D("Mult_vs_MaxBlipE",";Blip Multiplicity;Max Blip Energy (MeV)",25,0,25,25,0,10.);
+  h_Mult_vs_MaxBlipE  = new TH2D("Mult_vs_MaxBlipE",";Blip Multiplicity;Max Blip Energy (MeV)",25,0,25,25,0,5.);
   h_Mult_vs_Displacement = new TH2D("Mult_vs_Displacement",";Blip Multiplicity;Magnitude of Mean Displacement (cm)",25,0,25,30,0,30.);
   h_Mult_vs_Ratio = new TH2D("Mult_vs_Ratio",";Blip Multiplicity;Ratio of E_{blips} to E_e",25,0,25,25,0,1.);
+  h_Mult_vs_ElEnergy = new TH2D("Mult_vs_ElEnergy",";Blip Multiplicity;Primary Electron Energy Deposited (MeV)",25,0,25,100,0,50.);
   h_NuEnergy_vs_BlipMult->SetOption("colz");
   h_NuEnergy_vs_AveBlipE->SetOption("colz");
   h_NuEnergy_vs_MaxBlipE->SetOption("colz");
@@ -77,6 +77,7 @@ void configure(){
   h_Mult_vs_MaxBlipE->SetOption("colz");
   h_Mult_vs_Displacement->SetOption("colz");
   h_Mult_vs_Ratio->SetOption("colz");
+  h_Mult_vs_ElEnergy->SetOption("colz");
   
   float resbins_energy    = 24;
   float resbins           = 400;
@@ -113,7 +114,7 @@ void configure(){
 
 
 // =============================================================
-void SNnu(){
+void AnaMacro_SNnu(){
 
   // configure histograms and TFile
   configure();
@@ -150,7 +151,7 @@ void SNnu(){
       float edep = CalcEnergyDep(i);
       
       // (for debugging output -- keep commented out during normal running)
-      if(0){
+      if(1){
         printf("  %3i PDG: %10i, E=%8.3f,Edep=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
           trackId,
           pdg,
@@ -189,7 +190,7 @@ void SNnu(){
     ThresholdBlips(v_blips,fThreshold);
 
     float totalE_30cm = 0.; //elEnergyDep;
-    float maxBlipE    = -999.;
+    float maxBlipE    = 0.;
     
     h_NuEnergy->Fill(nuEnergy);    
     h_BlipMult->Fill(v_blips.size());
@@ -225,11 +226,14 @@ void SNnu(){
     h_Mult_vs_MaxBlipE->Fill(nBlips_30cm,maxBlipE); 
     h_Mult_vs_Displacement->Fill(nBlips_30cm,netVec.Mag()/nBlips_30cm);
     h_Mult_vs_Ratio->Fill(nBlips_30cm,totalE_30cm/elEnergyDep);
+    h_Mult_vs_ElEnergy->Fill(nBlips_30cm,elEnergyDep);
+
     // ................................
     // do smearing
     SmearBlips(v_blips,fSmear);
 
     printf("Event %5d -- smear: %6.2f keV, blips found: %d\n",iEvent,fSmear*1e3,(int)v_blips.size());
+  //  if( nBlips_30cm == 1 ) std::cout<<"FLAG!   only one blip in 30cm, energy = "<<maxBlipE<<"\n";
 
     // ===================================
     // Make histograms
@@ -301,6 +305,7 @@ void SNnu(){
   h_Mult_vs_MaxBlipE->Write();
   h_Mult_vs_Displacement->Write();
   h_Mult_vs_Ratio->Write();
+  h_Mult_vs_ElEnergy->Write();
   fOutFile->Close();
   return;
 }

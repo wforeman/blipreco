@@ -44,7 +44,7 @@ int       _no_hits_stored;
 int       _geant_list_size;
 int       _inTPCActive[kMax];
 int			  _pdg[kMax];
-float     _Mass[];
+float     _Mass[kMax];
 float     _Eng[kMax];
 float     _EndE[kMax];
 float     _StartT[kMax];

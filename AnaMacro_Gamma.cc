@@ -34,7 +34,7 @@ float fSigma = 0.3;
 
 //===============================================================
 
-void BlipReco_AnaMacro();
+void AnaMacro_Gamma();
 void configure();
 void loopTheBlips(std::vector<EnergyDeposit> blips );
 void makePlots();
@@ -94,7 +94,7 @@ void configure(){
 
 
 // =============================================================
-void BlipReco_AnaMacro(){
+void AnaMacro_Gamma(){
   
   // check that sphere size vectors are correct 
   if( v_SphereR.size() != nconfigs_SphereR ) {

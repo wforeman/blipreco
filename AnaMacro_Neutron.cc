@@ -28,7 +28,7 @@ std::vector<float>      fSphereR      = {30., 60.};
 
 //===============================================================
 
-void NeutronAnaMacro();
+void AnaMacro_Neutron();
 void configure();
 void reco();
 void makePlots();
@@ -108,7 +108,7 @@ void configure(){
 
 
 // =============================================================
-void NeutronAnaMacro(){
+void AnaMacro_Neutron(){
   
   // configure histograms and TFile
   configure();
