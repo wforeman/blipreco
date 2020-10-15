@@ -20,11 +20,11 @@
 #include <math.h>
 
 
-bool IsParticleDescendedFrom(int,int);
-bool IsParticleDescendedFrom(int,int,bool);
-int  PdgOfMother(int);
-float Mass(int);
+bool        IsParticleDescendedFrom(int,int);
+bool        IsParticleDescendedFrom(int,int,bool);
+int         PdgOfMother(int);
 std::string ProcessOfMother(int);
+float       Mass(int);
 
 // Random engine
 TRandom2 *fRand = new TRandom2();
@@ -38,7 +38,7 @@ struct EnergyDeposit {
   bool      isGrouped;
 };
 
-
+/*
 // AnaTree variables
 const int kMax = 10000;
 double    _NuEnergy;
@@ -88,6 +88,7 @@ void setBranches(TTree *tree){
   tree->SetBranchAddress("TrackId",&_TrackId);
   tree->SetBranchAddress("processname",&_processname,&br);
 }
+*/
 
 
 //==============================================================

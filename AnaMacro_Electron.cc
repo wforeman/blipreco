@@ -9,8 +9,9 @@
 //  > root -l ElectronReco_AnaMacro.cc
 //
 ////////////////////////////////////////////////////////////////// 
-#include "blip.h"
-#include "tools.h"
+#include "core/vars.h"
+#include "core/blip.h"
+#include "core/tools.h"
 
 // ============================================================
 // ===================   Parameters ===========================

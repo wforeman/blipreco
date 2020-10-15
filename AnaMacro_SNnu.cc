@@ -6,21 +6,22 @@
 //  To run:
 //  > root -l BlipReco_SNnu_vs_nCapture.cc
 //
-////////////////////////////////////////////////////////////////// 
-#include "core/blip_nu.h"
+//////////////////////////////////////////////////////////////////
+#include "core/vars_nu.h" 
+#include "core/blip.h"
 //#include "core/tools.h"
 
 // ===================   Parameters ===========================
 std::string             fFileName     = "AnaTree_SNnue_CC.root";
 //std::string             fFileName     = "AnaTree_SNnu_ES.root";
 std::string             fTreeName     = "analysistree/anatree";
-std::string             fOutFileName  = "plots.root";
+std::string             fOutFileName  = "output_plots.root";
 std::string             fMCFile       = "../mcfiles/"+fFileName;         
 
-float                   fThreshold    = 0.300; //0.075; //> Blip threshold (75 keV default)
+float                   fThreshold    = 0.075; //0.075; //> Blip threshold (75 keV default)
 float                   fSmear        = 0.00;   //> Smearing (50 keV usually)
 float                   fMinSep       = 0.20;   //> Min blip separation used (0 = no merging)
-float                   fSphereR      = 60.;    //> cm
+float                   fSphereR      = 30.;    //> cm
 
 //===============================================================
 void AnaMacro_SNnu();
@@ -63,6 +64,13 @@ TH1D*     h_Energy_vs_Res_Total;
 TH1D*     h_Energy_vs_RMS_Trk;
 TH1D*     h_Energy_vs_RMS_Total;
 
+TH1D*     h_Mult_0to30cm_noNeutron;
+TH1D*     h_Mult_30to60cm_noNeutron;
+TH1D*     h_Mult_0to30cm_Neutron;
+TH1D*     h_Mult_30to60cm_Neutron;
+TH1D*     h_Ratio_noNeutron;
+TH1D*     h_Ratio_Neutron;
+
 //================================================================
 void configure(){
   // make the histograms
@@ -90,6 +98,15 @@ void configure(){
   h_Mult_vs_Ratio->SetOption("colz");
   h_Mult_vs_ElEnergy->SetOption("colz");
   
+  h_Mult_0to30cm_noNeutron      = new TH1D("Mult_0to30cm_noNeutron","0-30cm (no neutron);Blip Multiplicity;Number of Events",25,0,25);
+  h_Mult_30to60cm_noNeutron     = new TH1D("Mult_30to60cm_noNeutron","30-60cm (no neutron);Blip Multiplicity;Number of Events",25,0,25);
+  h_Mult_0to30cm_Neutron      = new TH1D("Mult_0to30cm_Neutron","0-30cm (neutron);Blip Multiplicity;Number of Events",25,0,25);
+  h_Mult_30to60cm_Neutron     = new TH1D("Mult_30to60cm_Neutron","30-60cm (neutron);Blip Multiplicity;Number of Events",25,0,25);
+
+  h_Ratio_Neutron = new TH1D("Ratio_Neutron","WITH neutrons;N_{(30-60cm)} / N_{(0.5-60cm)}",20,0,1);
+  h_Ratio_noNeutron = new TH1D("Ratio_noNeutron","WITHOUT neutrons;N_{(30-60cm)} / N_{(0.5-60cm)}",20,0,1);
+
+
   float resbins_energy    = 24;
   float resbins           = 400;
   h_EnergyTrk_TrueVsReco  = new TH2D("EnergyTrk_TrueVsReco","Electron Track;True Energy (MeV);Reconstructed Track Energy (MeV)",
@@ -129,7 +146,7 @@ void AnaMacro_SNnu(){
 
   // configure histograms and TFile
   configure();
-  
+ 
   // --------------------------------------------
   // loop over the events
   for(int iEvent=0; iEvent<fTree->GetEntries(); iEvent++){
@@ -141,6 +158,7 @@ void AnaMacro_SNnu(){
     // Make a vector of Blip objects to fill
     std::vector<EnergyDeposit> v_blips;
       
+    bool  neutronPresent = false;
     float elEnergy    = -999.;
     float elEnergyDep = -999.;
 
@@ -158,7 +176,15 @@ void AnaMacro_SNnu(){
       float E       = 1e3*_Eng[i];
       float mass    = 1e3*Mass(i);
       float dL      = (loc-locEnd).Mag();
+     
       
+  
+      // ***************************************************************
+      // For SNnue-CC and SNnu-ES MC, mass and end energy weren't saved.
+      // We must assume it ranges out (endE = mass)
+      _EndE[i] = Mass(i);
+      // ***************************************************************
+
       // calculate the energy deposited by this particle
       // (includes depositions from contiguous daughters
       // like "eIoni" electrons)   
@@ -170,6 +196,9 @@ void AnaMacro_SNnu(){
           elEnergyDep = edep;
           nuVert      = loc;
       }
+
+      // look for neutron production
+      if( pdg == 2112 && proc == "primary" ) neutronPresent=true;
 
       // make blip if electron or proton with edep < 3 MeV
       if(     proc != "primary" && edep > 0 
@@ -219,6 +248,9 @@ void AnaMacro_SNnu(){
     float maxBlipE          = 0.;
     int   nBlips            = v_blips.size();
     int   nBlips_sphere     = 0;
+    int   nBlips_0to60      = 0;
+    int   nBlips_0to30      = 0;
+    int   nBlips_30to60     = 0;
     for(int i=0; i<nBlips; i++){
       float E = v_blips.at(i).Energy;
       h_BlipEnergy  ->Fill(E);
@@ -226,10 +258,15 @@ void AnaMacro_SNnu(){
       totalBlipE    += E;
       TVector3 loc  = v_blips.at(i).Location;
       TVector3 d    = (loc-nuVert);
-      if( d.Mag() < fSphereR && d.Mag() > 0.5 ){
-        if( E > maxBlipE ) maxBlipE = E;
-        nBlips_sphere++;
-        totalBlipE_sphere += E;
+      if( d.Mag() > 0.5 ) {
+        if( d.Mag() < fSphereR ) {
+          if( E > maxBlipE ) maxBlipE = E;
+          nBlips_sphere++;
+          totalBlipE_sphere += E;
+        }
+        if      (d.Mag() < 30 ) nBlips_0to30++;
+        else if (d.Mag() < 60 ) nBlips_30to60++;
+        if      (d.Mag() < 60 ) nBlips_0to60++;
       }
     }
     float aveBlipE = 0.;
@@ -275,7 +312,17 @@ void AnaMacro_SNnu(){
     if( nn < 2 )            n_sel_2blips++;
     if( nn < 2 && ee < 1. ) n_sel_2blips_1MeV++;
     if( nn < 1 )            n_sel_1blip++;
-    
+   
+    if( neutronPresent ) { 
+      h_Mult_0to30cm_Neutron->Fill(nBlips_0to30);
+      h_Mult_30to60cm_Neutron->Fill(nBlips_30to60);
+      if( nBlips_0to60 > 0 ) h_Ratio_Neutron->Fill((float)nBlips_30to60/(float)nBlips_0to60);
+    } else {
+      h_Mult_0to30cm_noNeutron->Fill(nBlips_0to30);
+      h_Mult_30to60cm_noNeutron->Fill(nBlips_30to60);
+      if( nBlips_0to60 > 0 ) h_Ratio_noNeutron->Fill((float)nBlips_30to60/(float)nBlips_0to60);
+    }
+
     
     h_BlipMult_Sphere->Fill(nBlips_sphere);
     h_MaxBlipE->Fill(maxBlipE); 
@@ -396,6 +443,12 @@ void AnaMacro_SNnu(){
   h_BlipL->Write();
   h_BlipMult->Write();
   h_BlipMult_Sphere->Write();
+  h_Mult_0to30cm_noNeutron->Write();
+  h_Mult_30to60cm_noNeutron->Write();
+  h_Mult_0to30cm_Neutron->Write();
+  h_Mult_30to60cm_Neutron->Write();
+  h_Ratio_Neutron->Write();
+  h_Ratio_noNeutron->Write();
   h_MaxBlipE->Write();
   h_NuEnergy_vs_AveBlipE->Write(); 
   h_NuEnergy_vs_BlipMult->Write();

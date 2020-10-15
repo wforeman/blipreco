@@ -9,6 +9,7 @@
 //  > root -l macro.cc
 //
 ////////////////////////////////////////////////////////////////// 
+#include "core/vars.h"
 #include "core/blip.h"
 #include "core/tools.h"
 

@@ -12,8 +12,9 @@
 //  > root -l BlipRecoExample.cc
 //
 ////////////////////////////////////////////////////////////////// 
-#include "blip.h"
-#include "tools.h"
+#include "core/vars.h"
+#include "core/blip.h"
+#include "core/tools.h"
 
 // ===================   Parameters ===========================
 std::string             fFileName     = "../../mcfiles/anatree_neutron_10MeV_larworld.root";

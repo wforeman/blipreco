@@ -9,6 +9,7 @@
 //  > root -l Ar39_AnaMarco.cc
 //
 ////////////////////////////////////////////////////////////////// 
+#include "core/vars.h"
 #include "core/blip.h"
 #include "core/tools.h"
 
