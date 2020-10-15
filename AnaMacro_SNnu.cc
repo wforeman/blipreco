@@ -17,10 +17,10 @@ std::string             fTreeName     = "analysistree/anatree";
 std::string             fOutFileName  = "plots.root";
 std::string             fMCFile       = "../mcfiles/"+fFileName;         
 
-float                   fThreshold    = 0.075; //> Blip threshold (75 keV default)
+float                   fThreshold    = 0.300; //0.075; //> Blip threshold (75 keV default)
 float                   fSmear        = 0.00;   //> Smearing (50 keV usually)
 float                   fMinSep       = 0.20;   //> Min blip separation used (0 = no merging)
-float                   fSphereR      = 30.;    //> cm
+float                   fSphereR      = 60.;    //> cm
 
 //===============================================================
 void AnaMacro_SNnu();
@@ -76,7 +76,7 @@ void configure(){
   h_NuEnergy_vs_AveBlipE = new TH2D("NuEnergy_vs_AveBlipE",";Neutrino Energy (MeV);Average Blip Energy (MeV)",120,0,60,100,0,5);
   h_NuEnergy_vs_MaxBlipE = new TH2D("NuEnergy_vs_MaxBlipE",";Neutrino Energy (MeV);Max Blip Energy (MeV)",120,0,60,120,0,60);
 
-  h_Mult_vs_Energy    = new TH2D("Mult_vs_Energy",";Blip Multiplicity;Summed Blip Energy (MeV)",25,0,25,30,0,30.);
+  h_Mult_vs_Energy    = new TH2D("Mult_vs_Energy",";Blip Multiplicity;Summed Blip Energy (MeV)",25,0,25,40,0,20.);
   h_Mult_vs_MaxBlipE  = new TH2D("Mult_vs_MaxBlipE",";Blip Multiplicity;Max Blip Energy (MeV)",25,0,25,25,0,5.);
   h_Mult_vs_AveBlipE  = new TH2D("Mult_vs_AveBlipE",";Blip Multiplicity;Average Blip Energy (MeV)",25,0,25,25,0,5.);
   h_Mult_vs_Ratio = new TH2D("Mult_vs_Ratio",";Blip Multiplicity;Ratio of E_{blips} to E_e",25,0,25,25,0,1.);
@@ -156,6 +156,7 @@ void AnaMacro_SNnu(){
       int mother    = _Mother[i];
       int nD        = _NumberDaughters[i];
       float E       = 1e3*_Eng[i];
+      float mass    = 1e3*Mass(i);
       float dL      = (loc-locEnd).Mag();
       
       // calculate the energy deposited by this particle
@@ -187,7 +188,7 @@ void AnaMacro_SNnu(){
           trackId,
           pdg,
           dL,
-          E,
+          E-mass,
           edep,
           mother,
           proc.c_str(),
@@ -254,12 +255,23 @@ void AnaMacro_SNnu(){
     // channel ID cuts
     float nn = nBlips_sphere;
     float ee = totalBlipE_sphere;
+    /*
     if( nn < 4 )            n_sel_4blips++;
     if( nn < 4 && ee < 1. ) n_sel_4blips_1MeV++;
     if( ee < 1. )           n_sel_1MeV++;
     if( ee < 2. )           n_sel_2MeV++;
     if( nn < 5 )            n_sel_5blips++;
     if( nn < 5 && ee < 2.)  n_sel_5blips_2MeV++;
+    if( nn < 2 )            n_sel_2blips++;
+    if( nn < 2 && ee < 1. ) n_sel_2blips_1MeV++;
+    if( nn < 1 )            n_sel_1blip++;
+    */
+    if( nn < 3 )            n_sel_4blips++;
+    if( nn < 3 && ee < 1. ) n_sel_4blips_1MeV++;
+    if( ee < 1. )           n_sel_1MeV++;
+    if( ee < 1.5 )           n_sel_2MeV++;
+    if( nn < 4 )            n_sel_5blips++;
+    if( nn < 4 && ee < 1.5)  n_sel_5blips_2MeV++;
     if( nn < 2 )            n_sel_2blips++;
     if( nn < 2 && ee < 1. ) n_sel_2blips_1MeV++;
     if( nn < 1 )            n_sel_1blip++;
@@ -287,6 +299,7 @@ void AnaMacro_SNnu(){
 
   // ------------------------------------------------
   // Channel ID counts
+  /*
   std::cout
   <<"=====================================\n"
   <<" N< --     E< 1 MeV    Nsel = "<<n_sel_1MeV<<"\n"
@@ -296,6 +309,22 @@ void AnaMacro_SNnu(){
   <<" N< --     E< 2 MeV    Nsel = "<<n_sel_2MeV<<"\n"
   <<" N< 5      E< -----    Nsel = "<<n_sel_5blips<<"\n"
   <<" N< 5      E< 2 MeV    Nsel = "<<n_sel_5blips_2MeV<<"\n"
+  <<" ------------------------------------\n"
+  <<" N< --     E< 1 MeV    Nsel = "<<n_sel_1MeV<<"\n"
+  <<" N< 2      E< -----    Nsel = "<<n_sel_2blips<<"\n"
+  <<" N< 2      E< 1 MeV    Nsel = "<<n_sel_2blips_1MeV<<"\n"
+  <<" N< 1      E< -----    Nsel = "<<n_sel_1blip<<"\n"
+  <<"=====================================\n";
+  */
+  std::cout
+  <<"=====================================\n"
+  <<" N< --     E< 1 MeV    Nsel = "<<n_sel_1MeV<<"\n"
+  <<" N< 3      E< -----    Nsel = "<<n_sel_4blips<<"\n"
+  <<" N< 3      E< 1 MeV    Nsel = "<<n_sel_4blips_1MeV<<"\n"
+  <<" ------------------------------------\n"
+  <<" N< --     E< 1.5 MeV  Nsel = "<<n_sel_2MeV<<"\n"
+  <<" N< 4      E< -----    Nsel = "<<n_sel_5blips<<"\n"
+  <<" N< 4      E< 1.5 MeV  Nsel = "<<n_sel_5blips_2MeV<<"\n"
   <<" ------------------------------------\n"
   <<" N< --     E< 1 MeV    Nsel = "<<n_sel_1MeV<<"\n"
   <<" N< 2      E< -----    Nsel = "<<n_sel_2blips<<"\n"
