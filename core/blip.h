@@ -19,12 +19,11 @@
 #include <vector>
 #include <math.h>
 
-bool DriftTimeCorrection = false;
-float driftVel = 1.6; // in units of cm/us.  V = 0.16 cm/us (DUNE TDR)
 
 bool IsParticleDescendedFrom(int,int);
 bool IsParticleDescendedFrom(int,int,bool);
 int  PdgOfMother(int);
+float Mass(int);
 std::string ProcessOfMother(int);
 
 // Random engine
@@ -48,7 +47,7 @@ int       _no_hits_stored;
 int       _geant_list_size;
 int       _inTPCActive[kMax];
 int			  _pdg[kMax];
-float     _Mass[kMax];
+//float     _Mass[kMax];
 float     _Eng[kMax];
 float     _EndE[kMax];
 float     _StartT[kMax];
@@ -72,7 +71,7 @@ void setBranches(TTree *tree){
   tree->SetBranchAddress("geant_list_size",&_geant_list_size);
   tree->SetBranchAddress("inTPCActive",&_inTPCActive);
   tree->SetBranchAddress("pdg",&_pdg);
-  tree->SetBranchAddress("Mass",&_Mass);
+//  tree->SetBranchAddress("Mass",&_Mass);
   tree->SetBranchAddress("Eng",&_Eng);
   tree->SetBranchAddress("EndE",&_EndE);
   tree->SetBranchAddress("StartT",&_StartT);
@@ -105,8 +104,7 @@ float CalcEnergyDepParticle(int iP){
     for(size_t i=iP+1; i<_geant_list_size; i++){
       if( _Mother[i] == _TrackId[iP] ) {
         
-        float m  = 1e3*_Mass[i];
-        float KE = 1e3*_Eng[i] - m;
+        float KE = 1e3*(_Eng[i]-Mass(i));
         
         // if Brem photon or ionization electron, subtract off the energy
         if( _processname->at(i) == "eBrem" || _processname->at(i) == "eIoni" || _processname->at(i) == "hIoni" ) 
@@ -161,30 +159,7 @@ EnergyDeposit MakeNewBlip(int i){
   b.Location.SetXYZ(_StartPointx[i],_StartPointy[i],_StartPointz[i]);
   b.Energy = CalcEnergyDep(i);
   b.Time = _StartT[i];
-
-  // -------------------------------------------------------
-  // This part is specific to the DUNE Ar39 sample
-  if( DriftTimeCorrection ) {
-    // For DUNE geometry, two different drift volumes each 350cm in X, 
-    // with cathode down the middle at X=0.  In X>0 volume, drift in +X 
-    // direction, so a time delay will make the blip appear to be further 
-    // away from the anode (i.e., blip will shift toward -X). Vice-versa
-    // for X<0.
-    // If a blip appears to leave its original volume, it will not be
-    // considered, so we assign dummy value to energy.
-    float x0 = b.Location.X();
-    float xnew = x0;
-    if( x0 >= 0 ) {
-      xnew = x0 -1.*(1e-3*driftVel)*b.Time;
-      if( xnew < 0 ) b.Energy = 0.;
-    } else
-    if( x0 < 0 ) {          
-      xnew = x0 +1.*(1e-3*driftVel)*b.Time;
-      if( xnew > 0 ) b.Energy = 0.;
-    }
-    b.Location.SetX( xnew );
-  }
-
+  b.PathLength = _pathlen[i];
   return b;
 }
 
@@ -218,6 +193,13 @@ bool IsParticleDescendedFrom( int particleID, int motherID, bool breakAtPhotons 
 
 bool IsParticleDescendedFrom( int particleID, int motherID ){
   return IsParticleDescendedFrom(particleID,motherID,false);
+}
+
+//=============================================================
+// Calculates mass of particle 'i'
+float Mass( int i ) {
+  float psquared = pow(_Px[i],2) + pow(_Py[i],2) + pow(_Pz[i],2);
+  return sqrt( pow(_Eng[i],2) - psquared );
 }
 
 //=============================================================

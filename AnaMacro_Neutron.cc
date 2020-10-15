@@ -115,6 +115,9 @@ void AnaMacro_Neutron(){
   reco();
   makePlots();
 
+  h_NScatGammaE->Scale(1./100000);
+  h_NScatGammaE->SetOption("HIST");
+
   // write histos
   h_BlipE         ->Write();
   h_BlipDist      ->Write();
@@ -226,7 +229,7 @@ void reco(){
             //INELASTIC SCATTER?
             if( _processname->at(ii) == "neutronInelastic" ) {
               gammaEsum_scat += Eg;
-              h_NScatGammaE->Fill(Eg);
+              if( proc == "primary" ) h_NScatGammaE->Fill(Eg);
               if( !isScatter ) {
                 isScatter = true;
                 nScattersPerEvent++;

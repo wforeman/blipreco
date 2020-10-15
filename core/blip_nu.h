@@ -23,6 +23,7 @@ bool IsParticleDescendedFrom(int,int);
 bool IsParticleDescendedFrom(int,int,bool);
 int  PdgOfMother(int);
 std::string ProcessOfMother(int);
+float Mass(int);
 
 // Random engine
 TRandom2 *fRand = new TRandom2();
@@ -44,9 +45,12 @@ int       _no_hits_stored;
 int       _geant_list_size;
 int       _inTPCActive[kMax];
 int			  _pdg[kMax];
-double		  _Mass[kMax];
+//double		_Mass[kMax];
 double     _Eng[kMax];
 double     _EndE[kMax];
+double     _Px[kMax];
+double     _Py[kMax];
+double     _Pz[kMax];
 double     _StartT[kMax];
 double     _EndT[kMax];
 double     _StartPointx[kMax];
@@ -69,6 +73,9 @@ void setBranches(TTree *tree){
   tree->SetBranchAddress("geant_list_size",&_geant_list_size);
   tree->SetBranchAddress("pdg",&_pdg);
   tree->SetBranchAddress("Eng",&_Eng);
+  tree->SetBranchAddress("Px",&_Px);
+  tree->SetBranchAddress("Py",&_Py);
+  tree->SetBranchAddress("Pz",&_Pz);
   //tree->SetBranchAddress("EndE",&_EndE);
   //tree->SetBranchAddress("StartT",&_StartT);
   //tree->SetBranchAddress("EndT",&_EndT);
@@ -90,15 +97,13 @@ void setBranches(TTree *tree){
 float CalcEnergyDepParticle(int iP){
 
   // ***************************************************************
-  // For SNnue-CC and SNnu-ES MC, mass and end energy weren't saved,
-  // so here we assume it is an electron and it ranges out.
-  _EndE[iP] = 0.000511;
-  _Mass[iP] = _EndE[iP];
+  // For SNnue-CC and SNnu-ES MC, mass and end energy weren't saved.
+  // We must assume it ranges out (endE = mass)
+  _EndE[iP] = Mass(iP);
   // ***************************************************************
   
   // if photon or neutron, no deposited energy
-  if( _pdg[iP] == 22 || _pdg[iP] == 2112 ) return 0.;
- 
+  if( _pdg[iP] == 22 || _pdg[iP] == 2112 ) return 0.; //|| _pdg[iP] > 1000000 ) return 0.;
 
   // at first approximation, Edep is the energy difference
   float Edep = 1e3*(_Eng[iP] - _EndE[iP]);
@@ -108,9 +113,7 @@ float CalcEnergyDepParticle(int iP){
     for(size_t i=iP+1; i<_geant_list_size; i++){
       if( _Mother[i] == _TrackId[iP] ) {
        
-        float m  = 1e3*_Mass[i];
-        if( _pdg[i] == 22 ) m = 0;
-        float KE = 1e3*_Eng[i] - m;
+        float KE = 1e3*(_Eng[i]-Mass(i));
         
         // if Brem photon or ionization electron, subtract off the energy
         if( _processname->at(i) == "eBrem" || _processname->at(i) == "eIoni" || _processname->at(i) == "hIoni" ) 
@@ -158,6 +161,16 @@ float CalcEnergyDep(int iP){
   return Edep;
 }
 
+//===============================================================
+EnergyDeposit MakeNewBlip(int i){
+  EnergyDeposit b;
+  b.Location.SetXYZ(_StartPointx[i],_StartPointy[i],_StartPointz[i]);
+  b.Energy = CalcEnergyDep(i);
+  b.Time = _StartT[i];
+  b.PathLength = _pathlen[i];
+  return b;
+}
+
 //============================================================
 // Boolean function which loops through the lineaage of a particle
 bool IsParticleDescendedFrom( int particleID, int motherID, bool breakAtPhotons ){
@@ -188,6 +201,13 @@ bool IsParticleDescendedFrom( int particleID, int motherID, bool breakAtPhotons 
 
 bool IsParticleDescendedFrom( int particleID, int motherID ){
   return IsParticleDescendedFrom(particleID,motherID,false);
+}
+
+//=============================================================
+// Calculates mass of particle 'i'
+float Mass( int i ) {
+  float psquared = pow(_Px[i],2) + pow(_Py[i],2) + pow(_Pz[i],2);
+  return sqrt( pow(_Eng[i],2) - psquared );
 }
 
 //=============================================================
