@@ -15,13 +15,11 @@
 
 // ============================================================
 // ===================   Parameters ===========================
-//std::string             fFileName    = "../mcfiles/anatree_neutrons_1eV.root";
-//std::string             fFileName    = "../mcfiles/anatree_neutron_0to20MeV_larworld.root";
-std::string             fFileName    = "../mcfiles/AnaTree_neutron_10MeV.root";
+//std::string             fFileName    = "AnaTree_neutron_1eV.root";
+std::string             fFileName    = "AnaTree_neutron_0to20MeV.root";
+//std::string             fFileName    = "AnaTree_neutron_10MeV.root";
 
-std::string             fTreeName     = "analysistree/anatree";
-std::string             fOutFileName  = "plots.root";
-float                   fThreshold    = 0.100; // MeV (default 0.075)
+float                   fThreshold    = 0.075; // MeV (default 0.075)
 float                   fSmear        = 0.00; // 50 keV
 float                   fMinSep       = 0.2; // cm
 std::vector<float>      fSphereR      = {30., 60.};
@@ -33,6 +31,10 @@ void AnaMacro_Neutron();
 void configure();
 void reco();
 void makePlots();
+
+std::string fTreeName     = "analysistree/anatree";
+std::string fOutFileName  = "output_plots.root";
+std::string fMCFile       = "../mcfiles/"+fFileName;         
 
 TVector3  fPrimaryStartPoint;
 float     fNeutronEnergy;
@@ -61,11 +63,13 @@ TH2D*     h_IncEnergy_vs_NScatGammaESum;
 TH2D*     h_Energy_TrueVsReco[NSphereR];
 TH1D*     h_RecoEnergy[NSphereR];
 TH1D*     h_RecoMult[NSphereR];
+TH2D*     h_Energy_vs_FirstIntDist;
+TH1D*     h_FirstIntDist;
 
 void configure(){
   
   // open the file and set up the TTree
-  TFile* file = new TFile(fFileName.c_str(),"READ");
+  TFile* file = new TFile(fMCFile.c_str(),"READ");
   fTree = (TTree*)file->Get(fTreeName.c_str());
   setBranches(fTree);
   
@@ -92,8 +96,12 @@ void configure(){
   h_Energy_vs_NScatPerEvt = new TH2D("Energy_vs_NScatPerEvt",";Primary neutron energy (MeV);Number of inelastic scatters",100,0,20,10,0,10);
   h_IncEnergy_vs_NScatGammaESum  = new TH2D("IncEnergy_vs_GammaESum","Neutron inelastic scatters;Incident neutron energy (MeV);Summed E_{#gamma} from interaction (MeV)",100,0,20,200,0,20);
   
+  h_FirstIntDist              = new TH1D("FirstIntDist","Distance of first neutron interaction;True Neutron Energy (MeV);Distance (cm)",300,0,300);
+  h_Energy_vs_FirstIntDist    = new TH2D("Energy_vs_FirstIntDist","Distance of first neutron interaction;True Neutron Energy (MeV);Distance (cm)",40,0,20,60,0,300.);
+  
   h_Energy_vs_NScatPerEvt->SetOption("colz");
   h_IncEnergy_vs_NScatGammaESum->SetOption("colz");
+  h_Energy_vs_FirstIntDist->SetOption("colz");
 
   for(int i=0; i<fSphereR.size(); i++){
     h_Energy_TrueVsReco[i]   = new TH2D(Form("Energy_TrueVsReco_%2.0fcm",fSphereR.at(i)),Form("R=%2.0f;True Neutron Energy (MeV);Reconstructed Energy (MeV)",fSphereR.at(i)),
@@ -136,6 +144,8 @@ void AnaMacro_Neutron(){
   h_NScatGammaE   ->Write();
   h_Energy_vs_NScatPerEvt->Write();
   h_IncEnergy_vs_NScatGammaESum->Write();
+  h_Energy_vs_FirstIntDist->Write();
+  h_FirstIntDist->Write();
 
   for(size_t i=0; i<fSphereR.size(); i++) h_Energy_TrueVsReco[i]->Write();
   for(size_t i=0; i<fSphereR.size(); i++) h_RecoEnergy[i]->Write();
@@ -159,6 +169,7 @@ void reco(){
     fNeutronEnergy        = -999.;
     int nCapturesPerEvent = 0;
     int nScattersPerEvent = 0;
+    float primIntDist     = -9;
 
     // Make a vector of blip objects to fill,
     std::vector<EnergyDeposit> v_blips;
@@ -173,8 +184,8 @@ void reco(){
       std::string proc = _processname->at(i);
       int   pdg     = _pdg[i];
       int   trackId = _TrackId[i]; 
-      float KE      = 1e3*(_Eng[i]-_Mass[i]);
-      float KEf     = 1e3*(_EndE[i]-_Mass[i]);
+      float KE      = 1e3*(_Eng[i]-Mass(i));
+      float KEf     = 1e3*(_EndE[i]-Mass(i));
       int   mother  = _Mother[i];
       int   nD      = _NumberDaughters[i];
       float startT  = _StartT[i];
@@ -209,35 +220,45 @@ void reco(){
         // Figure out what the neutron eventually does
         // by looking for daughters
         for(int ii=i; ii<nParticles; ii++){
-          if( _pdg[ii] == 22 && _Mother[ii] == trackId ) {
+          if( _Mother[ii] == trackId ) {
+              
+            TVector3 d_loc;
+            d_loc.SetXYZ(_StartPointx[ii],_StartPointy[ii],_StartPointz[ii]);
 
-            float Eg = 1e3*_Eng[ii];
-
-            // CAPTURE?
-            if( _processname->at(ii) == "nCapture" ) {
-              gammaEsum_capt += Eg;
-              h_NCaptGammaE->Fill(Eg);
-              if( !isCapture ) {
-                isCapture = true;
-                nCapturesPerEvent++;
-                TVector3 capturePoint;
-                capturePoint.SetXYZ(_StartPointx[ii],_StartPointy[ii],_StartPointz[ii]);
-                h_NCaptDist->Fill( (capturePoint-fPrimaryStartPoint).Mag() );
-                h_NCaptTime->Fill( _StartT[ii]*1e-3 );
-              }
+            if( proc == "primary" && _processname->at(ii) == "neutronInelastic" && primIntDist < 0 ) {
+              primIntDist = (d_loc-fPrimaryStartPoint).Mag();
+              h_FirstIntDist->Fill(primIntDist);
+              h_Energy_vs_FirstIntDist->Fill(fNeutronEnergy,primIntDist); 
             }
+          
+            if( _pdg[ii] == 22 ) {
 
-            //INELASTIC SCATTER?
-            if( _processname->at(ii) == "neutronInelastic" ) {
-              gammaEsum_scat += Eg;
-              if( proc == "primary" ) h_NScatGammaE->Fill(Eg);
-              if( !isScatter ) {
-                isScatter = true;
-                nScattersPerEvent++;
+              float Eg = 1e3*_Eng[ii];
+
+              // CAPTURE?
+              if( _processname->at(ii) == "nCapture" ) {
+                gammaEsum_capt += Eg;
+                h_NCaptGammaE->Fill(Eg);
+                if( !isCapture ) {
+                  isCapture = true;
+                  nCapturesPerEvent++;
+                  h_NCaptDist->Fill( (d_loc-fPrimaryStartPoint).Mag() );
+                  h_NCaptTime->Fill( _StartT[ii]*1e-3 );
+                }
               }
-            }
+
+              //INELASTIC SCATTER?
+              if( _processname->at(ii) == "neutronInelastic" ) {
+                gammaEsum_scat += Eg;
+                if( proc == "primary" ) h_NScatGammaE->Fill(Eg);
+                if( !isScatter ) {
+                  isScatter = true;
+                  nScattersPerEvent++;
+                }
+              }
             
-          }
+            }//endif pdg==22
+          }//endif mother is neutron
         }//< end determination of capture/scatter
 
         if( isCapture ) h_NCaptGammaESum->Fill(gammaEsum_capt);

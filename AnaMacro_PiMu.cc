@@ -215,10 +215,10 @@ void process() {
       // (for debugging output -- keep commented out during normal running)
       if(0){ //&& i < 100){
         float d = (loc-primaryEnd).Mag();
-        printf("  %3i PDG: %10i, d=%8.2fcm,  dL=%8.2f,  E=%8.3f,  Edep=%8.3f,  T0=%7.2f, Tf=%7.2f, moth=%3i,  %12s,  Ndaught=%3i,  blips=%3lu\n",
+        printf("  %3i PDG: %10i, dL=%8.2f,  E=%8.3f,  Edep=%8.3f,  T0=%7.2f, Tf=%7.2f, moth=%3i,  %12s,  Ndaught=%3i,  blips=%3lu\n",
           trackId,
           pdg,
-          d,
+          //d,
           dL,
           E-mass,
           edep,

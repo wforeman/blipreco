@@ -19,7 +19,6 @@
 #include <vector>
 #include <math.h>
 
-
 bool        IsParticleDescendedFrom(int,int);
 bool        IsParticleDescendedFrom(int,int,bool);
 int         PdgOfMother(int);
