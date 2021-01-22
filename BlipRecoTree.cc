@@ -17,7 +17,8 @@
 #include "core/tools.h"
 
 // ===================   Parameters ===========================
-std::string             fFileName       = "../mcfiles/AnaTree_elMinus_1MeV_10kEvents.root";
+//std::string             fFileName       = "../mcfiles/AnaTree_elMinus_1MeV_10kEvents.root";
+std::string             fFileName       = "../mcfiles/AnaTree_elPlus_1MeV_10kEvents.root";
 std::string             fTreeName       = "analysistree/anatree";
 std::string             fOutFileName    = "plots.root";
 float                   fThreshold      = 0.075; // 75 keV
@@ -65,7 +66,7 @@ void configure(){
   fTree2  ->SetName("anatree_blip");
   fTree2  ->Reset();
   fTree2  ->Branch("blip_list_size",&_numBlips,"blip_list_size/I");
-  fTree2  ->Branch("BlipTrackId",_blipTrackId,"BlipTrackId[blip_list_size]/F");
+  fTree2  ->Branch("BlipTrackId",_blipTrackId,"BlipTrackId[blip_list_size]/I");
   fTree2  ->Branch("BlipEnergy",_blipEnergy,"BlipEnergy[blip_list_size]/F");
   fTree2  ->Branch("BlipLocX",_blipLocX,"BlipLocX[blip_list_size]/F");
   fTree2  ->Branch("BlipLocY",_blipLocY,"BlipLocY[blip_list_size]/F");
