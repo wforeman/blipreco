@@ -157,9 +157,6 @@ void reco(){
 
       // record blip
       if( edep ) AddNewBlip(v_blips,i);
-//        EnergyDeposit b = MakeNewBlip(i);
-//        v_blips.push_back(b);
-//      }
       
       // debugging output
       printf("  %3i PDG: %10i,  dL=%8.3f, KE0=%8.3f,  KEf=%8.3f, Edep=%8.3f, T0=%8.3f, Tf=%8.3f, moth=%3i, %12s, Ndaught=%i\n",
