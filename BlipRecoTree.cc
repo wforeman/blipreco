@@ -17,11 +17,11 @@
 #include "core/tools.h"
 
 // ===================   Parameters ===========================
-//std::string             fFileName       = "../mcfiles/AnaTree_elMinus_1MeV_10kEvents.root";
-std::string             fFileName       = "../mcfiles/AnaTree_elPlus_1MeV_10kEvents.root";
+std::string             fFileName       = "../mcfiles/AnaTree_elMinus_1MeV_10kEvents.root";
+//std::string             fFileName       = "../mcfiles/AnaTree_elPlus_1MeV_10kEvents.root";
 std::string             fTreeName       = "analysistree/anatree";
-std::string             fOutFileName    = "plots.root";
-float                   fThreshold      = 0.075; // 75 keV
+std::string             fOutFileName    = "output.root";
+float                   fThreshold      = 0.0; // 75 keV
 float                   fSmear          = 0.0; // 50 keV
 float                   fMinSep         = 0.2;   // 0.2 cm
 
@@ -88,8 +88,8 @@ void BlipRecoTree(){
 
   configure();
   reco();
- 
-  /*  
+
+  /* 
   h_PrimaryEnergy ->Write();
   h_NumBlips      ->Write();
   h_BlipEnergy    ->Write();
