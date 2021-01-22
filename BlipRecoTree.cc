@@ -137,10 +137,9 @@ void reco(){
       std::string proc = _processname->at(i);
       int   pdg     = _pdg[i];
       int   trackId = _TrackId[i]; 
-      float p       = 1e3*sqrt( pow(_Px[i],2) + pow(_Py[i],2) + pow(_Pz[i],2) );
       float E       = 1e3*_Eng[i];
       float endE    = 1e3*_EndE[i];
-      float mass    = sqrt( pow(E,2) - pow(p,2) );
+      float mass    = Mass(i);
       float KE      = E - mass;
       float KEf     = endE - mass;
       int   mother  = _Mother[i];

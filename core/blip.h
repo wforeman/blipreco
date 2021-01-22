@@ -155,8 +155,9 @@ bool IsParticleDescendedFrom( int particleID, int motherID ){
 float Mass( int i ) {
   if( _pdg[i] == 22 ) return 0.;
   if( abs(_pdg[i])==12 || abs(_pdg[i])==14 || abs(_pdg[i])==16 ) return 0.;
-  float psquared = pow(_Px[i],2) + pow(_Py[i],2) + pow(_Pz[i],2);
-  return sqrt( pow(_Eng[i],2) - psquared );
+  float p = 1e3*sqrt( pow(_Px[i],2) + pow(_Py[i],2) + pow(_Pz[i],2) );
+  float E = 1e3*_Eng[i];
+  return sqrt( pow(E,2) - pow(p,2) );
 }
 
 //=============================================================
