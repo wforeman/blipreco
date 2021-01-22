@@ -30,6 +30,7 @@ TRandom2 *fRand = new TRandom2();
 
 // Data structure for "blip" object
 struct EnergyDeposit {
+  int       TrackId;
   TVector3  Location;
   float     Time;
   float     Energy;
@@ -108,7 +109,13 @@ EnergyDeposit MakeNewBlip(int i){
   b.Energy = CalcEnergyDep(i);
   b.Time = _StartT[i];
   b.PathLength = _pathlen[i];
+  b.TrackId = _TrackId[i];
   return b;
+}
+
+void AddNewBlip(std::vector<EnergyDeposit>& v, int i){
+  EnergyDeposit b = MakeNewBlip(i);
+  v.push_back(b);
 }
 
 //============================================================
@@ -207,6 +214,7 @@ void MergeBlips(std::vector<EnergyDeposit> &v, float sep){
     if( v.at(i).isGrouped ) continue;
     else v.at(i).isGrouped = true;
     EnergyDeposit newBlip;
+    newBlip.TrackId = v.at(i).TrackId;
     newBlip.Energy = v.at(i).Energy;
     newBlip.Location = v.at(i).Location;
     newBlip.PathLength = v.at(i).PathLength;
@@ -216,7 +224,7 @@ void MergeBlips(std::vector<EnergyDeposit> &v, float sep){
       float d = (v.at(i).Location - v.at(j).Location).Mag();
       if( d < sep ) {
         newBlip.Energy += v.at(j).Energy;
-        newBlip.PathLength += v.at(j).PathLength;
+        //newBlip.PathLength += v.at(j).PathLength;
         v.at(j).isGrouped = true;
       }
     }
